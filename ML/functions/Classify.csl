@@ -1,0 +1,76 @@
+//
+//  classify_sf() function
+//
+//  Classify (aka score) samples by a pre-trained model stored in models table
+//  Below there is a Kusto lambda version for debugging
+//
+
+.create function with (folder = "Packages\\ML", docstring = "Classify samples by a pre-trained model stored in ML_Models table")
+classify_sf(samples:(*), models_tbl:(name:string, timestamp:datetime, model:string), model_name:string, features_cols:dynamic, pred_col:string)
+{
+    let model_str = toscalar(models_tbl | where name == model_name | top 1 by timestamp desc | project model);
+    let kwargs = pack('smodel', model_str, 'features_cols', features_cols, 'pred_col', pred_col);
+    let code =
+    '\n'
+    'import pickle\n'
+    'import binascii\n'
+    '\n'
+    'smodel = kargs["smodel"]\n'
+    'features_cols = kargs["features_cols"]\n'
+    'pred_col = kargs["pred_col"]\n'
+    'bmodel = binascii.unhexlify(smodel)\n'
+    'clf1 = pickle.loads(bmodel)\n'
+    'df1 = df[features_cols]\n'
+    'predictions = clf1.predict(df1)\n'
+    '\n'
+    'result = df\n'
+    'result[pred_col] = pd.DataFrame(predictions, columns=["pred_col"])'
+    '\n'
+    ;
+    samples | evaluate python(code, 'df(*)', kwargs)
+}
+
+//
+// lambda for testing
+//
+let classify_sf=(samples:(*), models_tbl:(name:string, timestamp:datetime, model:string), model_name:string, features_cols:dynamic, pred_col:string)
+{
+    let model_str = toscalar(models_tbl | where name == model_name | top 1 by timestamp desc | project model);
+    let kwargs = pack('smodel', model_str, 'features_cols', features_cols, 'pred_col', pred_col);
+    let code =
+    '\n'
+    'import pickle\n'
+    'import binascii\n'
+    '\n'
+    'smodel = kargs["smodel"]\n'
+    'features_cols = kargs["features_cols"]\n'
+    'pred_col = kargs["pred_col"]\n'
+    'bmodel = binascii.unhexlify(smodel)\n'
+    'clf1 = pickle.loads(bmodel)\n'
+    'df1 = df[features_cols]\n'
+    'predictions = clf1.predict(df1)\n'
+    '\n'
+    'result = df\n'
+    'result[pred_col] = pd.DataFrame(predictions, columns=["pred_col"])'
+    '\n'
+    ;
+    samples | evaluate python(code, 'df(*)', kwargs)
+};
+
+//
+//  Testing
+//
+OccupancyDetection 
+| where Test == 1
+| extend pred_Occupancy=0
+| invoke classify_sf(ML_Models, 'Occupancy', pack_array('Temperature', 'Humidity', 'Light', 'CO2', 'HumidityRatio'), 'pred_Occupancy')
+| fork
+(summarize n=count() by Occupancy, pred_Occupancy)
+(summarize accuracy = 100.0*count(Occupancy == pred_Occupancy)/count())
+
+Iris
+| extend pred_Species=''
+| invoke classify_sf(ML_Models, 'Iris', pack_array('SepalLength', 'SepalWidth', 'PetalLength', 'PetalWidth'), 'pred_Species')
+| fork
+(summarize n=count() by Species, pred_Species)
+(summarize accuracy = 100.0*count(Species == pred_Species)/count())
