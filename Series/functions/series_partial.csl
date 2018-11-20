@@ -1,0 +1,27 @@
+.create function with (folder = "Packages\\Series", docstring = "Returns true if series has any missing values, false otherwise")
+series_partial_sf(series:dynamic, empty_val:double)
+{
+    let se = series_equals(series, repeat(empty_val, array_length(series)));
+    let s = series_stats_dynamic(se);
+    let max_val = todouble(s.max);
+    max_val == 1 
+}
+
+let series_partial_sf = (series:dynamic, empty_val:double)
+{
+    let se = series_equals(series, repeat(empty_val, array_length(series)));
+    let s = series_stats_dynamic(se);
+    let max_val = todouble(s.max);
+    max_val == 1 
+};
+
+// Test
+//
+let y=array_concat(repeat(1, 10), repeat(-1, 3), repeat(2, 10));
+print(1)
+| project x=range(1, array_length(y), 1), y
+| extend partial=series_partial_sf(y, -1)
+
+| render linechart 
+
+
