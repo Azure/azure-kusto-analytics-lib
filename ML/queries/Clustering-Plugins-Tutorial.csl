@@ -1,0 +1,67 @@
+//
+//  Clustering plugins for diagnosis and RCA
+//
+
+#connect cluster('help').database('Samples')
+
+//  Demo table contains 1 week of service exceptions
+//
+demo_clustering1
+| take 10 
+
+demo_clustering1
+| count 
+
+//  Build a time series of exception over the week in 10m bins
+//
+let min_t = toscalar(demo_clustering1 | summarize min(PreciseTimeStamp));  
+let max_t = toscalar(demo_clustering1 | summarize max(PreciseTimeStamp));  
+demo_clustering1
+| make-series num=count() on PreciseTimeStamp in range(min_t, max_t, 10m)
+| render timechart 
+
+//  Focus on the 2nd spike, redraw 8 hours in 1m bins
+//
+let min_t=datetime(2016-08-23 11:00);
+demo_clustering1
+| make-series num=count() on PreciseTimeStamp in range(min_t, min_t+8h, 1m)
+| render timechart 
+
+//  Sample exceptions during the 2nd spike
+//
+let min_peak_t=datetime(2016-08-23 15:00);
+let max_peak_t=datetime(2016-08-23 15:02);
+demo_clustering1
+| where PreciseTimeStamp between(min_peak_t..max_peak_t)
+
+//  autocluster() to find interesting clusters during the 2 minutes of the spike
+//
+let min_peak_t=datetime(2016-08-23 15:00);
+let max_peak_t=datetime(2016-08-23 15:02);
+demo_clustering1
+| where PreciseTimeStamp between(min_peak_t..max_peak_t)
+| evaluate autocluster()
+
+//  diffpatterns() to find interesting clusters during the 2 minutes of the spike which are significantly different than clusters on the 8 minutes baseline before.
+//  Note that we leave out a 2 minutes gap between the baseline and the spike to avoid the transition zone
+//
+let min_peak_t=datetime(2016-08-23 15:00);
+let max_peak_t=datetime(2016-08-23 15:02);
+let min_baseline_t=datetime(2016-08-23 14:50);
+let max_baseline_t=datetime(2016-08-23 14:58);
+let splitime=(max_baseline_t+min_peak_t)/2.0;
+demo_clustering1
+| where (PreciseTimeStamp between(min_baseline_t..max_baseline_t)) or
+        (PreciseTimeStamp between(min_peak_t..max_peak_t))
+| extend AB=iff(PreciseTimeStamp > splitime, 'Anomaly', 'Baseline')
+| evaluate diffpatterns(AB, 'Anomaly', 'Baseline') 
+
+// Validating diff pattern segment: redraw timechart but splitting it to the problematic segment and all other
+//
+let min_t = toscalar(demo_clustering1 | summarize min(PreciseTimeStamp));  
+let max_t = toscalar(demo_clustering1 | summarize max(PreciseTimeStamp));  
+demo_clustering1
+| extend seg = iff(Region == "eau" and ScaleUnit == "su7" and DeploymentId == "b5d1d4df547d4a04ac15885617edba57"
+and ServiceHost == "e7f60c5d-4944-42b3-922a-92e98a8e7dec", "Problem", "Normal")
+| make-series num=count() on PreciseTimeStamp in range(min_t, max_t, 10m)  by seg  //  uncomment "by seg" to split
+| render timechart 
