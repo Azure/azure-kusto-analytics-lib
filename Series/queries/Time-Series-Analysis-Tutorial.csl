@@ -1,0 +1,252 @@
+//
+//  Time Series Analysis operator & functions
+//
+
+#connect cluster('help').database('Samples')
+
+//  make-series operator
+//
+//  The main operator used to build a set of time series from tabular data
+//
+
+// Demo table contains 2 weeks from Web service telemetry views
+
+demo_make_series1 | take 10 
+
+demo_make_series1 | count 
+
+//  Building time series of service traffic in 1h resolution per operating system
+//
+let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
+demo_make_series1
+| make-series num=count() default=0 on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| render timechart 
+
+//  Series functions
+
+//  Demo series showing trend change (typical pattern when monitoring of application failures, memory consumption, IoT sensor reading etc.)
+//
+demo_series1
+| render linechart
+
+//  series_stats()
+//
+//  Calculates simple statistics
+//
+demo_series1
+| project (ymin, id1, ymax, id2, avg, stdev, var) = series_stats(y) 
+
+//  series_fit_line()
+//
+//  Linear regression, fitting the best line to a series
+//
+demo_series1
+| extend series_fit_line(y)
+| render linechart with(ycolumns=y, series_fit_line_y_line_fit)
+
+//  series_fit_2lines()
+//
+//  2 segments linear regression - optimal split of the series to 2 segments, fitting best line to each 
+//
+demo_series1
+| extend series_fit_2lines(y), series_fit_line(y)
+| render linechart with(ycolumns=y, series_fit_2lines_y_line_fit, series_fit_line_y_line_fit)
+
+//  2 segments linear regression - jump example
+//
+demo_series2
+| extend series_fit_2lines(y), series_fit_line(y)
+| render linechart | render linechart with(ycolumns=y, series_fit_2lines_y_line_fit, series_fit_line_y_line_fit)
+
+//  series_moving_avg_sf()
+//
+//  Defining a user function to calculate moving average using native series_fir() function that calculate FIR (Finite Impulse Response)low pass filter on a series
+//
+let series_moving_avg_sf = (series:dynamic, size:int, center:bool=false)
+{
+    series_fir(series, repeat(1, size), true, center)
+}
+;
+demo_series1
+| extend ma_y = series_moving_avg_sf(y, 8)
+| render linechart
+
+
+//  Automatic seasonality detection & validation
+
+//  Demo series contains typical events traffic in 1 month, manifesting weekly & daily periods (2h bins)
+
+demo_series3
+| render timechart 
+
+//  series_periods_detect()
+//
+//  Automatic detection of top periods. Return 2 arrays: one with the periods (in number of bins units) and the other and one with the respective scores from 0 (no period) to 1 (pure period with no noise)  
+//  In this query we detect top 2 periods whose duration is between 0 and 8 days (i.e. 8d/2h=192 bins)
+//
+demo_series3
+| project (periods, scores) = series_periods_detect(num, 0., 8d/2h, 2)
+| mvexpand periods, scores
+| extend days=2h*todouble(periods)/1d
+
+//  series_periods_validate()
+//
+//  Test existence of expected periods
+//  In this query we test for weekly, daily & 8 hours periods. The last one doesn't exist in the demo series
+//
+demo_series3
+| project (periods, scores) = series_periods_validate(num, 8h/2h, 1d/2h, 7d/2h)
+| mvexpand periods, scores
+| extend days=2h*todouble(periods)/1d
+
+//  Using moving average filter to remove daily seasonality
+//
+let series_moving_avg_sf = (series:dynamic, size:int, center:bool=false)
+{
+    series_fir(series, repeat(1, size), true, center)
+}
+;
+demo_series3
+| extend ma_num = series_moving_avg_sf(num, 1d/2h, true)
+| render timechart 
+
+//  Verify daily seasonality was removed
+//
+demo_series3
+| extend ma_num = series_moving_avg_sf(num, 1d/2h)
+| extend periods = series_periods_detect(num, 0., 8d/2h, 2)
+| extend periods_ma = series_periods_detect(ma_num, 0., 8d/2h, 2)
+| project periods, periods_ma 
+| mvexpand periods, periods_ma
+| extend days=2h*todouble(periods)/1d, days_ma=2h*todouble(periods_ma)/1d
+
+//
+//  Native series functions for Anomaly Detection & Forecasting
+//
+
+//  series_decompose()
+//
+//  Decomposition of a set of time series to seasonal, trend, residual & baseline (which is just seasonal+trend)
+//  This function is used for the following series_decompose_anomalies() and series_decompose_forecast()
+//
+let min_t = datetime(2016-08-29);
+let max_t = datetime(2016-09-03);
+demo_make_series1
+| make-series num=count() on TimeStamp in range(min_t, max_t, 10m) by OsVer
+| where OsVer == 'Windows 10'   //  select a single time series just to get cleaner visualization
+| extend (baseline, seasonal, trend, residual) = series_decompose(num)
+| render timechart with(title='Web app. traffic of 5 days, Decomposition')
+
+
+//
+//  series_decompose_anomalies()
+//
+//  Anomaly Detection by decomposing the series using series_decompose() and then calculates custom Tukey's fence test (like in series_outliers()) on the residual component
+//  Note that in this example series_decompose_anomalies() is called implicitly with default values by the "| render anomalychart" clause
+//
+let min_t = datetime(2016-08-29);
+let max_t = datetime(2016-09-03);
+demo_make_series1
+| make-series num=count() on TimeStamp in range(min_t, max_t, 10m) by OsVer
+| where OsVer == 'Windows 10'
+| render anomalychart with(title='Web app. traffic of 5 days, Point Anomalies by Time Series Decmposition')
+
+//
+//  Call series_decompose_anomalies() explicitly to increase the anomaly threshold from default 1.5 to 3.0 (detecting strong anomalies only)
+//  Note that in this example we use "| render anomalychart with anomalycolumns=ad" just to render the anomalies as bold points on top of the series charts
+//
+let min_t = datetime(2016-08-29);
+let max_t = datetime(2016-09-03);
+demo_make_series1
+| make-series num=count() on TimeStamp in range(min_t, max_t, 10m) by OsVer
+| where OsVer == 'Windows 10'
+| extend anomalies = series_decompose_anomalies(num, 2.0)
+| render anomalychart with(anomalycolumns=anomalies, title='Web app. traffic of 5 days, Point Anomalies by Time Series Decmposition, Anomaly threshold = 2.0')
+
+//
+//  series_decompose_forecast()
+//
+//  Forecasting by decomposing the series using series_decompose() and then extrapolate the baseline for the next day
+//
+let min_t = datetime(2016-08-29);
+let max_t = datetime(2016-09-03);
+let dt = 10m;
+let horizon=1d;
+demo_make_series1
+| make-series num=count() on TimeStamp in range(min_t, max_t, dt) by OsVer
+| extend TimeStamp=array_concat(TimeStamp, range(max_t+dt, max_t+horizon, dt)), num=array_concat(num, repeat(0, toint(horizon/dt)))
+| where OsVer == 'Windows 10'   //  select a single time series just to get cleaner visualization
+| extend forecast = series_decompose_forecast(num, toint(horizon/dt))
+| render timechart with(title='Web app. traffic of 5 days, forecasting the next day by Time Series Decmposition')
+
+//
+//  Applying the above function on big set of time series is powerful!
+//
+//  Demo of detection few anomalous time series out of thousands time series
+//
+
+//  Demo table of internal DB sampled data for 4 days in 9/2016
+
+demo_many_series1
+| summarize num=count(), min_t=min(TIMESTAMP), max_t=max(TIMESTAMP)  
+
+demo_many_series1
+| take 10 
+
+//  Time series of data read metric in 1h resolution (total 4*24=96 points): root segment (i.e. global aggregation) looks ok
+
+let min_t = toscalar(demo_many_series1 | summarize min(TIMESTAMP));  
+let max_t = toscalar(demo_many_series1 | summarize max(TIMESTAMP));  
+demo_many_series1
+| make-series reads=avg(DataRead) on TIMESTAMP in range(min_t, max_t, 1h)
+| render timechart 
+
+//  Partition the records set by Loc, Op & DB, total 18339 partitions
+//
+demo_many_series1
+| summarize by Loc, Op, DB
+| count
+
+//  View time series for 5 sample partitions
+//
+//  helper function to filter series that had empty bins (filled by make-series using default 0 value)  
+//
+let series_partial_sf = (series:dynamic, empty_val:real)
+{
+    let se = series_equals(series, repeat(empty_val, array_length(series)));
+    let s = series_stats_dynamic(se);
+    let max_val = todouble(s.max);
+    max_val == 1 
+} 
+;
+let min_t = toscalar(demo_many_series1 | summarize min(TIMESTAMP));  
+let max_t = toscalar(demo_many_series1 | summarize max(TIMESTAMP));  
+demo_many_series1
+| make-series reads=avg(DataRead) on TIMESTAMP in range(min_t, max_t, 1h) by Loc, Op, DB
+| where series_partial_sf(reads, 0) == false
+| sample 5
+| render timechart with(ysplit=axes)
+
+//
+//  Find top 2 trending down segments (out of 18339 segments)
+//
+let series_partial_sf = (series:dynamic, empty_val:real)
+{
+    let se = series_equals(series, repeat(empty_val, array_length(series)));
+    let s = series_stats_dynamic(se);
+    let max_val = todouble(s.max);
+    max_val == 1 
+} 
+;
+let min_t = toscalar(demo_many_series1 | summarize min(TIMESTAMP));  
+let max_t = toscalar(demo_many_series1 | summarize max(TIMESTAMP));  
+demo_many_series1
+| make-series reads=avg(DataRead) on TIMESTAMP in range(min_t, max_t, 1h) by Loc, Op, DB
+| where series_partial_sf(reads, 0) == false
+| extend series_fit_line(reads)
+| top 2 by series_fit_line_reads_slope asc 
+| extend series_fit_2lines(reads)
+| project Loc, Op, DB, TIMESTAMP, reads 
+| render timechart with(title='Service Traffic Outage for 2 instances (out of 18339)')
+ 
