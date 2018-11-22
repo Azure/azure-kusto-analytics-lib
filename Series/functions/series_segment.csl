@@ -1,0 +1,37 @@
+//
+//  series_segment_sf() - Create a series containing sequental numbering of non zero segments in the input boolean series
+//
+
+.create function with (folder = "Packages\\Series", docstring = "Create a series containing sequental numbering of non zero segments in the input boolean series")
+series_segment_sf(series:dynamic)
+{
+    let dx = series_fir(series, dynamic([1,-1]));
+    let dxp = series_greater(dx, 0);
+    let cdxp = series_iir(dxp, dynamic([1]), dynamic([1, -1]));
+    let seg = series_add(series_multiply(series, cdxp), series_multiply(series_less(series, 1), 0));
+    seg
+}
+
+let series_segment_sf=(series:dynamic)
+{
+    let dx = series_fir(series, dynamic([1,-1]));
+    let dxp = series_greater(dx, 0);
+    let cdxp = series_iir(dxp, dynamic([1]), dynamic([1, -1]));
+    let seg = series_add(series_multiply(series, cdxp), series_multiply(series_less(series, 1), 0));
+    seg
+}
+;
+
+print x = dynamic([1,1,0,0,0,1,0,1,1,1,1,0,0,1,1,1,0,0,1])
+| extend seg = series_segment_sf(x)
+| mvexpand x to typeof(long), seg to typeof(long)  
+
+//
+// generates a table of segments with from/to indexes
+//
+{result}
+| serialize 
+| extend idx=row_number()-1
+| summarize min(idx), max(idx) by seg
+| where seg > 0
+
