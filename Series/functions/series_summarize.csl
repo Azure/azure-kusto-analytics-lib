@@ -1,0 +1,58 @@
+//
+//  series_summarize_sf() - Calculate aggregation functions on series 
+// 
+//  currently supports any numpy aggregation function
+//
+
+.create function with (folder = "Packages\\Series", docstring = "Calculate aggregation functions on series")
+series_summarize_sf(tbl:(*), in_series:string, out_col:string, aggr_func:string, aggr_params:dynamic) // =dynamic(null)) Bug: dynamic default is not supported
+{
+    let kwargs = pack('in_series', in_series, 'out_col', out_col, 'aggr_func', aggr_func, 'aggr_params', aggr_params);
+    tbl
+    | evaluate python(
+        'in_series = kargs["in_series"]\n'
+        'out_col = kargs["out_col"]\n'
+        'aggr_func = kargs["aggr_func"]\n'
+        'aggr_params = kargs["aggr_params"]\n'
+        'result = df\n'
+        'func = getattr(np, aggr_func)\n'
+        'result[out_col] = df[in_series].apply(func, args=(aggr_params,))\n'
+        , 'df(*)', kwargs)
+}
+
+let series_summarize_sf = (tbl:(*), in_series:string, out_col:string, aggr_func:string, aggr_params:dynamic=dynamic(null))
+{
+    let kwargs = pack('in_series', in_series, 'out_col', out_col, 'aggr_func', aggr_func, 'aggr_params', aggr_params);
+    tbl
+    | evaluate python(
+        'in_series = kargs["in_series"]\n'
+        'out_col = kargs["out_col"]\n'
+        'aggr_func = kargs["aggr_func"]\n'
+        'aggr_params = kargs["aggr_params"]\n'
+        'result = df\n'
+        'func = getattr(np, aggr_func)\n'
+        'result[out_col] = df[in_series].apply(func, args=(aggr_params,))\n'
+        , 'df(*)', kwargs)
+}
+;
+
+//
+//  Testing: compare sum & percentiles to native implementation
+//
+let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
+let pct_array = dynamic([10, 50, 90]);
+let tbl = materialize(
+demo_make_series1
+| make-series num=count() default=0 on TimeStamp in range(min_t, max_t, 1h) by OsVer
+);
+tbl
+| extend sum_python=dynamic(null), pct_python=dynamic(null)
+| invoke series_summarize_sf('num', 'sum_python', 'sum', dynamic(null))
+| invoke series_summarize_sf('num', 'pct_python', 'percentile', aggr_params=pct_array)
+| join (
+tbl    
+| mvexpand num to typeof(int) limit 1000000
+| summarize sum=sum(num), pct=percentiles_array(num, pct_array) by OsVer
+) on OsVer
+| project-away TimeStamp, num, OsVer1 
