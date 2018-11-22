@@ -1,0 +1,71 @@
+//
+//  series_rolling_sf() - rolling window function on series
+//
+//  currently supports any numpy aggregation function (can be easily extended to support inline Python function, to be defined above the rolling call)
+//
+
+.create function with (folder = "Packages\\Series", docstring = "Rolling window function on a series", skipvalidation = "true")
+series_rolling_sf(tbl:(*), in_series:string, out_series:string, win_size:int, aggr_func:string, center:bool)
+{
+    let kwargs = pack('in_series', in_series, 'out_series', out_series, 'win_size', win_size, 'aggr_func', aggr_func, 'center', center);
+    tbl
+    | evaluate python(
+        '\n'
+        'in_series = kargs["in_series"]\n'
+        '\n'
+        'out_series = kargs["out_series"]\n'
+        'win_size = kargs["win_size"]\n'
+        'aggr_func = kargs["aggr_func"]\n'
+        'center = kargs["center"]\n'
+        'result = df\n'
+        'in_s = df[in_series]\n'
+        'func = getattr(np, aggr_func)\n'
+        'result[out_series] = list(pd.Series(in_s[i]).rolling(win_size, center=center, min_periods=1).apply(func).values for i in range(len(in_s)))\n'
+        '\n'
+        , 'df(*)', kwargs)
+}
+
+let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
+demo_make_series1
+| make-series num=count() default=0 on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| extend rolling_num = dynamic(null)                             //  place holder until we support dynamic schema
+| invoke series_rolling_sf('num', 'rolling_num', 15, 'median', true)
+| render timechart // with(ysplit=panels) 
+
+
+//
+// lambda - for debugging
+//
+let series_rolling_sf = (tbl:(*), in_series:string, out_series:string, win_size:int, aggr_func:string, center:bool)
+{
+    let kwargs = pack('in_series', in_series, 'out_series', out_series, 'win_size', win_size, 'aggr_func', aggr_func, 'center', center);
+    tbl
+    | evaluate python(
+        '\n'
+        'in_series = kargs["in_series"]\n'
+        '\n'
+        'out_series = kargs["out_series"]\n'
+        'win_size = kargs["win_size"]\n'
+        'aggr_func = kargs["aggr_func"]\n'
+        'center = kargs["center"]\n'
+        'result = df\n'
+        'in_s = df[in_series]\n'
+        'func = getattr(np, aggr_func)\n'
+        'result[out_series] = list(pd.Series(in_s[i]).rolling(win_size, center=center, min_periods=1).apply(func).values for i in range(len(in_s)))\n'
+        '\n'
+        , 'df(*)', kwargs)
+}
+;
+//
+// Test
+//
+let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
+demo_make_series1
+| make-series num=count() on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| extend rolling_med = dynamic(null), rolling_min = dynamic(null), rolling_max = dynamic(null)
+| invoke series_rolling_sf('num', 'rolling_med', 15, 'median', true)
+| invoke series_rolling_sf('num', 'rolling_min', 15, 'min', true)
+| invoke series_rolling_sf('num', 'rolling_max', 15, 'max', true)
+| render timechart // with(ysplit=panels) 
