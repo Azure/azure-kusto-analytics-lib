@@ -1,0 +1,202 @@
+//
+//  Demo of KQL + inline Python
+//
+
+#connect cluster('help').database('Samples')
+
+//  Writing & pasting this simple Python script in KE as is doesn't work, it generates parsing errors by KQL
+
+result = df
+result["x2"] = df["x"].pow(2)
+result["x3"] = df["x"].pow(3)
+
+//  Mark the avove lines and press either F2, Ok or Ctrl+K, Ctrl+S to decorate it. Verifying it’s a legal KQL multi-line string
+
+print
+'result = df\n'
+'result["x2"] = df["x"].pow(2)\n'
+'result["x3"] = df["x"].pow(3)\n'
+
+//
+// Run it
+//
+
+range x from 1 to 10 step 1
+
+let code =
+'result = df\n'
+'result["x2"] = df["x"].pow(2)\n'
+'result["x3"] = df["x"].pow(3)\n'
+;
+range x from 1 to 10 step 1
+| evaluate python(code, 'df(*), x2:int, x3:int')
+
+//
+//  Demo of fitting time series with high order polynomial using numpy.polyfit
+//
+
+//  Original time series (Web service telemetry views)
+//
+let max_t = datetime(2016-09-03);
+demo_make_series1
+| make-series num=count() on TimeStamp in range(max_t-1d, max_t, 5m) by OsVer
+| render timechart 
+
+// Linear fit (1st degree polynom) using native series_fit_line() 
+//
+let max_t = datetime(2016-09-03);
+demo_make_series1
+| make-series num=count() on TimeStamp in range(max_t-1d, max_t, 5m) by OsVer
+| extend series_fit_line(num)
+| render timechart 
+
+//
+//  Better fit with high order polynomial using numpy.polyfit
+//
+//  Note we Wrap the Python script in Kusto function/lambda for passing parameters and readability
+//
+let series_fit_poly = (tbl:(*), col:string, degree:int)
+{
+let kwargs = pack('col', col, 'degree', degree);
+tbl
+| evaluate python(
+    '\n'
+    'col = kargs["col"]\n'
+    'degree = kargs["degree"]\n'
+    '\n'
+    'def fit(s, deg):\n'
+    '    x = np.arange(len(s))\n'
+    '    coeff = np.polyfit(x, s, deg)\n'
+    '    p = np.poly1d(coeff)\n'
+    '    z = p(x)\n'
+    '    return z\n'
+    '\n'
+    'result = df\n'
+    'result["fnum"] = df[col].apply(fit, deg=degree)\n'
+    '\n'
+,'df(*), fnum:dynamic', kwargs)
+};
+//
+let max_t = datetime(2016-09-03);
+demo_make_series1
+| make-series num=count() on TimeStamp in range(max_t-1d, max_t, 5m) by OsVer
+| extend series_fit_line(num)
+| invoke series_fit_poly('num', 5)
+| render timechart 
+
+//
+//  Demo of K-Means (from Scikit-learn)
+//
+
+//
+//  OccupancyDetection dataset from UCI Repository (https://archive.ics.uci.edu/ml/datasets/Occupancy+Detection+)
+//
+//  Experimental data used for binary classification (room occupancy) from Temperature,Humidity,Light and CO2.
+//  Ground-truth occupancy was obtained from time stamped pictures that were taken every minute
+//
+
+OccupancyDetection
+| take 20
+
+OccupancyDetection
+| count
+
+//
+//  K-Means clustering on the sensors measurements
+//
+//  Prepend the cluster id per each record
+//
+let kmeans=(tbl:(*), k:int, features:dynamic)
+{
+let args = pack('k', k, 'features', features);
+let code =
+    '\n'
+    'from sklearn.cluster import KMeans\n'
+    '\n'
+    'k = kargs["k"]\n'
+    'features = kargs["features"]\n'
+    '\n'
+    'km = KMeans(n_clusters=k)\n'
+    'df1 = df[features]\n'
+    'km.fit(df1)\n'
+    'result = df\n'
+    'result.insert(0, "cluster_id", km.labels_)\n'
+    ;
+tbl
+| evaluate python(code, 'cluster_id:int, df(*)', args)
+};
+//
+let num_clusters=5;
+//
+OccupancyDetection
+| invoke kmeans(num_clusters, pack_array("Temperature", "Humidity", "Light", "CO2", "HumidityRatio"))
+| sample 10
+
+//
+// same but output the centroids and size of the clusters:
+//
+let kmeans=(tbl:(*), k:int, features:dynamic)
+{
+let args = pack('k', k, 'features', features);
+let code =
+    '\n'
+    'from sklearn.cluster import KMeans\n'
+    '\n'
+    'k = kargs["k"]\n'
+    'features = kargs["features"]\n'
+    '\n'
+    'km = KMeans(n_clusters=k)\n'
+    'df1 = df[features]\n'
+    'km.fit(df1)\n'
+    'result = pd.DataFrame(km.cluster_centers_, columns=df1.columns)\n'
+    'result.insert(0, "num", pd.DataFrame(km.labels_, columns=["n"]).groupby("n").size())\n'    
+    'result.insert(0, "cluster_id", range(k))\n'
+    ;
+tbl
+| evaluate python(code, "cluster_id:int, num:long, df(*)", args)
+};
+//
+let num_clusters=5;
+//
+OccupancyDetection
+| project-away Timestamp , Occupancy , Test 
+| invoke kmeans(num_clusters, pack_array("Temperature", "Humidity", "Light", "CO2", "HumidityRatio"))
+
+//
+//  Demo of predicting (a.k.a. scoring) by classifier (from Scikit-learn)
+//
+//  Training the classifier in Jupyter (or other Python IDE), persist the resulting model in Kusto table & use it to classify new samples
+//
+//  Using the same OccupancyDetection dataset to predict room occupancy 
+//
+let classify_sf=(samples:(*), models_tbl:(name:string, timestamp:datetime, model:string), model_name:string, features_cols:dynamic, pred_col:string)
+{
+    let model_str = toscalar(models_tbl | where name == model_name | top 1 by timestamp desc | project model);
+    let kwargs = pack('smodel', model_str, 'features_cols', features_cols, 'pred_col', pred_col);
+    let code =
+    '\n'
+    'import pickle\n'
+    'import binascii\n'
+    '\n'
+    'smodel = kargs["smodel"]\n'
+    'features_cols = kargs["features_cols"]\n'
+    'pred_col = kargs["pred_col"]\n'
+    'bmodel = binascii.unhexlify(smodel)\n'
+    'clf1 = pickle.loads(bmodel)\n'
+    'df1 = df[features_cols]\n'
+    'predictions = clf1.predict(df1)\n'
+    '\n'
+    'result = df\n'
+    'result[pred_col] = pd.DataFrame(predictions, columns=["pred_col"])'
+    '\n'
+    ;
+    samples | evaluate python(code, 'df(*)', kwargs)
+};
+OccupancyDetection 
+| where Test == 1
+| extend pred_Occupancy=0
+| invoke classify_sf(ML_Models, 'Occupancy', pack_array('Temperature', 'Humidity', 'Light', 'CO2', 'HumidityRatio'), 'pred_Occupancy')
+| fork
+(summarize n=count() by Occupancy, pred_Occupancy)                          //  confusion matrix
+(summarize accuracy = 100.0*count(Occupancy == pred_Occupancy)/count())     //  accuracy
+
