@@ -1,0 +1,259 @@
+//
+//  Forecast model
+//
+//  Walkthrough for creating a forecast model for a set of time series using seasonal decomposition (reference: https://otexts.org/fpp2/decomposition.html)
+//
+
+#connect cluster('Kustolab').database('MLADS_Lab') 
+
+//
+//  1. Create & render your time series set (using make-series operator)
+//
+
+//
+//  Sample table of service traffic
+//
+demo_series4
+| take 10
+
+demo_series4
+| summarize min(timestamp), max(timestamp)
+
+//
+//  recommended 1h for {bin_size}
+//
+demo_series4
+| make-series num=sum(num) on timestamp in range(datetime(2017-12-07), datetime(2017-12-31), {bin_size}) by sid 
+| render timechart 
+
+//  Select a single time series for this tutorial, you can run it on the full set of time series
+
+{result}                //  shortcut to the last result set
+| where sid == '_2_'
+| render timechart 
+
+//
+//  2. Split the series column to train & test parts (using array_slice() or array_split())
+//
+//  recommended up to 4d for {test_win}
+//
+let test_bins=tolong({test_win}/{bin_size});
+{result}
+| extend _train=array_split(num, -test_bins)[0]
+| render timechart
+
+//
+//  3. Optional filter for outliers: either using series_fir(), series_iir() or non-linear rolling median using Python pandas.Series.rolling())
+//
+
+//
+//  Create series_rolling_sf(): a generic rolling function over series using Python. This function supports any numpy aggregation function
+//
+//  Start with lambda function - easier debugging & no database write permission is needed
+//
+let series_rolling_sf = (tbl:(*), in_series:string, out_series:string, win_size:int, aggr_func:string, center:bool)
+{
+    let kwargs = pack('in_series', in_series, 'out_series', out_series, 'win_size', win_size, 'aggr_func', aggr_func, 'center', center);
+    tbl
+    | evaluate python(
+        '\n'
+        'in_series = kargs["in_series"]\n'
+        '\n'
+        'out_series = kargs["out_series"]\n'
+        'win_size = kargs["win_size"]\n'
+        'aggr_func = kargs["aggr_func"]\n'
+        'center = kargs["center"]\n'
+        'result = df\n'
+        'in_s = df[in_series]\n'
+        'func = getattr(np, aggr_func)\n'
+        'result[out_series] = list(pd.Series(in_s[i]).rolling(win_size, center=center, min_periods=1).apply(func).values for i in range(len(in_s)))\n'
+        '\n'
+        , 'df(*)', kwargs)
+}
+;
+//
+// Test
+//
+{result}
+| extend rolling_med = dynamic(null)
+| invoke series_rolling_sf('num', 'rolling_med', 15, 'median', true)
+| render timechart // with(ysplit=panels) 
+
+//
+// Once finalized, store it (assuming you are permitted to write functions to the DB)
+//
+.create function with (folder = "Packages\\Series", docstring = "Rolling window function on a series", skipvalidation = "true")
+series_rolling_sf(tbl:(*), in_series:string, out_series:string, win_size:int, aggr_func:string, center:bool)
+{
+    let kwargs = pack('in_series', in_series, 'out_series', out_series, 'win_size', win_size, 'aggr_func', aggr_func, 'center', center);
+    tbl
+    | evaluate python(
+        '\n'
+        'in_series = kargs["in_series"]\n'
+        '\n'
+        'out_series = kargs["out_series"]\n'
+        'win_size = kargs["win_size"]\n'
+        'aggr_func = kargs["aggr_func"]\n'
+        'center = kargs["center"]\n'
+        'result = df\n'
+        'in_s = df[in_series]\n'
+        'func = getattr(np, aggr_func)\n'
+        'result[out_series] = list(pd.Series(in_s[i]).rolling(win_size, center=center, min_periods=1).apply(func).values for i in range(len(in_s)))\n'
+        '\n'
+        , 'df(*)', kwargs)
+}
+
+//
+//  Restore {result}.
+//  Note that if you ran the .create statement {result} contains this the response of this command so the the time series should be completely restored by running from make-series  
+//  
+
+{result}
+| project-away rolling_med
+| render timechart
+
+//
+//  Apply a light median filter over the time series
+//
+{result}
+| extend _filtrain=dynamic(null)
+| invoke series_rolling_sf('_train', '_filtrain', 5, 'median', true)
+| render timechart with(ysplit=panels)
+
+//
+//  4. Decompose to seasonal & non-seasonal components (using series_seasonal())
+//
+
+//
+//  Extend the table with the top seasonal period
+//
+//  Based on seasonality parameter:
+//      -1: [auto-detect seasonality] auto-detect detect top period using series_periods_detect. For this setting we checked that the period score is above period_score_threshold
+//      0: [data is not seasonal] no period, used for non seasonal time series
+//      X: [force known seasonality] specific known period (e.g. 24 for daily seasonality of 1h bins)
+//
+//  Note that tuple output is not working with case (i.e. "| extend (p, p_score) = case(...)" fails)
+//
+//  recommended -1 for {seasonality}, 0.7 for {period_score_threshold}
+//
+{result}
+| extend _p = case(
+{seasonality} == -1, series_periods_detect(_filtrain, 0, 300, 1)      //  300 can cover daily seasonality for 5m bins (12*24=288) or weekly seasonality for 1h bins (7*24=168)
+, {seasonality} > 0, pack_array({seasonality}, 1.0)
+, pack_array(0.0, 1.0)
+)
+| mvexpand _p = _p[0] to typeof(double), _p_score = _p[1] to typeof(double)
+| extend _period = iff(_p_score > {period_score_threshold}, toint(_p), 0)  //  threshold on seasonality score
+| project-away _p
+
+//
+//  Extract the seasonal part
+//
+{result}
+| extend _seasonal=series_seasonal(_filtrain, _period)
+| render timechart
+
+//
+//  And the non-seasonal part
+//
+{result}
+| extend _non_seasonal = series_subtract(_filtrain, _seasonal)
+| render timechart
+
+//
+//  5. Decompose the non-seasonal to trend & residual (using series_fit_line())
+//
+
+//
+// De-trend
+//
+{result}
+| extend _fit = series_fit_line_dynamic(_non_seasonal)
+| extend _trend = _fit.line_fit
+| render timechart
+
+//
+//  6. Extrapolate the seasonal and the trend to forecast (using array_concat())
+//
+
+//
+//  Extrapolate trend component
+//
+let test_bins=tolong({test_win}/{bin_size});
+{result}
+| extend _ts_len = array_length(num)
+| extend _ex_trend = series_add(series_multiply(range(_ts_len-test_bins+1, _ts_len, 1), repeat(todouble(_fit.slope), test_bins)), repeat(todouble(_fit.interception), test_bins))
+| extend _trend = array_concat(_trend, _ex_trend)
+| render timechart
+
+//
+//  Extrapolate seasonal component
+//
+let test_bins=tolong({test_win}/{bin_size});
+{result}
+| extend _from_id = iff(_period >= 1, (_ts_len - test_bins) % _period, 0)
+| extend _to_id = _from_id + test_bins - 1
+| extend _ex_seasonal = array_slice(_seasonal, _from_id, _to_id)
+| extend _seasonal = array_concat(_seasonal, _ex_seasonal)
+| render timechart
+
+//
+//  7. Create the final forecast by adding the seasonal & trend (using series_add())
+//
+{result}
+| extend forecast = series_add(_seasonal, _trend)
+| render timechart
+
+//
+//  Clenup redundant columns
+//
+{result}
+| project-away _train, _filtrain, _p_score, _period, _seasonal, _non_seasonal, _fit, _trend, _ts_len, _ex_trend, _from_id, _to_id, _ex_seasonal
+| render timechart
+
+//
+//  Combine the above steps to create series_decompose_forecast_sf()
+//
+let series_decompose_forecast_sf = (tbl:(*), in_series:string, seasonality:int=long(-1), forecast_bins:int=0, low_pass:int=5, period_score_threshold:double=0.7)
+{
+    let etbl = materialize(tbl);
+    etbl
+    | extend _in_series=columnifexists(in_series, dynamic(null))
+    | extend _train=array_split(_in_series, -1*forecast_bins)[0]
+    | extend _filtrain=dynamic(null)
+    | invoke series_rolling_sf('_train', '_filtrain', low_pass, 'median', true)
+    | extend _p = case(
+      seasonality == -1, series_periods_detect(_filtrain, 0, 300, 1)
+    , seasonality > 0, pack_array(seasonality, 1.0)
+    , pack_array(0.0, 1.0)
+    )
+    | mvexpand _p = _p[0] to typeof(double), _p_score = _p[1] to typeof(double)
+    | extend _period = iff(_p_score > period_score_threshold, toint(_p), 0)
+    | project-away _p
+    | extend _seasonal=series_seasonal(_filtrain, _period)
+    | extend _non_seasonal = series_subtract(_filtrain, _seasonal)
+    | extend _fit = series_fit_line_dynamic(_non_seasonal)
+    | extend _trend = _fit.line_fit
+    | extend _ts_len = array_length(_in_series)
+    | extend _ex_trend = series_add(series_multiply(range(_ts_len-forecast_bins+1, _ts_len, 1), repeat(todouble(_fit.slope), forecast_bins)), repeat(todouble(_fit.interception), forecast_bins))
+    | extend _trend = array_concat(_trend, _ex_trend)
+    | extend _from_id = iff(_period >= 1, (_ts_len - forecast_bins) % _period, 0)
+    | extend _to_id = _from_id + forecast_bins - 1
+    | extend _ex_seasonal = array_slice(_seasonal, _from_id, _to_id)
+    | extend _seasonal = array_concat(_seasonal, _ex_seasonal)
+    | extend forecast = series_add(_seasonal, _trend)
+    | project-away _in_series, _train, _filtrain, _p_score, _period, _seasonal, _non_seasonal, _fit, _trend, _ts_len, _ex_trend, _from_id, _to_id, _ex_seasonal
+}
+;
+//
+//  And let's forecast the first week of 2018
+//
+let max_t=datetime(2017-12-31 23:00);
+let dt = 1h;
+let horizon=7d;
+demo_forecast
+| where sid == '_2_'
+| extend timestamp=array_concat(timestamp, range(max_t+dt, max_t+horizon, dt)), num=array_concat(num, repeat(0, toint(horizon/dt)))
+| invoke series_decompose_forecast_sf('num', forecast_bins=toint(horizon/dt))
+| render timechart
+
