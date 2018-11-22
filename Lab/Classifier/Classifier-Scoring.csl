@@ -1,0 +1,71 @@
+//
+//  classify_sf(): Classify (aka score) samples by a pre-trained model stored in models table
+//
+//  Start with lambda function - easier debugging & no database write permission is needed
+//
+
+#connect cluster('kustolab').database('MLADS_Lab')  
+
+let classify_sf=(samples:(*), models_tbl:(name:string, timestamp:datetime, model:string), model_name:string, features_cols:dynamic, pred_col:string)
+{
+    let model_str = toscalar(models_tbl | where name == model_name | top 1 by timestamp desc | project model);
+    let kwargs = pack('smodel', model_str, 'features_cols', features_cols, 'pred_col', pred_col);
+    let code =
+    '\n'
+    'import pickle\n'
+    'import binascii\n'
+    '\n'
+    'smodel = kargs["smodel"]\n'
+    'features_cols = kargs["features_cols"]\n'
+    'pred_col = kargs["pred_col"]\n'
+    'bmodel = binascii.unhexlify(smodel)\n'
+    'clf1 = pickle.loads(bmodel)\n'
+    'df1 = df[features_cols]\n'
+    'predictions = clf1.predict(df1)\n'
+    '\n'
+    'result = df\n'
+    'result[pred_col] = pd.DataFrame(predictions, columns=["pred_col"])'
+    '\n'
+    ;
+    samples | evaluate python(code, 'df(*)', kwargs)
+};
+
+//
+// Once finalized, store it (assuming you are permitted to write functions to the DB)
+//
+.create function with (folder = "Packages\\ML", docstring = "Classify samples by a pre-trained model stored in ML_Models table")
+classify_sf(samples:(*), models_tbl:(name:string, timestamp:datetime, model:string), model_name:string, features_cols:dynamic, pred_col:string)
+{
+    let model_str = toscalar(models_tbl | where name == model_name | top 1 by timestamp desc | project model);
+    let kwargs = pack('smodel', model_str, 'features_cols', features_cols, 'pred_col', pred_col);
+    let code =
+    '\n'
+    'import pickle\n'
+    'import binascii\n'
+    '\n'
+    'smodel = kargs["smodel"]\n'
+    'features_cols = kargs["features_cols"]\n'
+    'pred_col = kargs["pred_col"]\n'
+    'bmodel = binascii.unhexlify(smodel)\n'
+    'clf1 = pickle.loads(bmodel)\n'
+    'df1 = df[features_cols]\n'
+    'predictions = clf1.predict(df1)\n'
+    '\n'
+    'result = df\n'
+    'result[pred_col] = pd.DataFrame(predictions, columns=["pred_col"])'
+    '\n'
+    ;
+    samples | evaluate python(code, 'df(*)', kwargs)
+}
+
+//
+//  Test scoring
+//
+OccupancyDetection 
+| where Test == 1
+| extend pred_Occupancy=0
+| invoke classify_sf(ML_Models, 'Occupancy', pack_array('Temperature', 'Humidity', 'Light', 'CO2', 'HumidityRatio'), 'pred_Occupancy')
+| fork
+(summarize n=count() by Occupancy, pred_Occupancy)
+(summarize accuracy = 100.0*count(Occupancy == pred_Occupancy)/count())
+
