@@ -1,7 +1,7 @@
 //
-//  series_fir_poly_sf() - Fit a polynomial of a specified degree to a series
+//  series_fit_poly_sf() - Fit a polynomial of a specified degree to a series using numpy.polyfit
 //
-//  Using numpy.polyfit
+//  The function appends the fitted series column to the original input table\n'
 //
 
 .create function with (folder = "Packages\\Series", docstring = "Fit a polynomial of a specified degree to a series")
@@ -9,16 +9,6 @@ series_fit_poly_sf(tbl:(*), in_series:string, out_series:string, degree:int)
 {
 let kwargs = pack('in_series', in_series, 'out_series', out_series, 'degree', degree);
 let code=
-    '# Fit a polynomial of required degree to the supplied series\n'
-    '\n'
-    '# Parameters:\n'
-    '#\n'
-    '#   in_series: name of the series column in df (the input table)\n'
-    '#   out_series: name of the fitted series column in result\n'
-    '#   degree: the required polynomial order\n'
-    '#\n'
-    '# The function appends the fit_series column to the original input table\n'
-    '#\n'
     '\n'
     'in_series = kargs["in_series"]\n'
     'out_series = kargs["out_series"]\n'
@@ -45,16 +35,6 @@ let series_fit_poly_sf=(tbl:(*), in_series:string, out_series:string, degree:int
 {
 let kwargs = pack('in_series', in_series, 'out_series', out_series, 'degree', degree);
 let code=
-    '# Fit a polynomial of required degree to the supplied series\n'
-    '\n'
-    '# Parameters:\n'
-    '#\n'
-    '#   in_series: name of the series column in df (the input table)\n'
-    '#   out_series: name of the fitted series column in result\n'
-    '#   degree: the required polynomial order\n'
-    '#\n'
-    '# The function appends the fit_series column to the original input table\n'
-    '#\n'
     '\n'
     'in_series = kargs["in_series"]\n'
     'out_series = kargs["out_series"]\n'
