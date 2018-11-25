@@ -1,7 +1,7 @@
 
 # Azure Data Explorer Library
 
-This repository contains user functions, sample queries & notebookes for Azure Data Exlorer (Kusto). See the complete [index](.\index.md) of contents.
+This repository contains user functions, sample queries & notebookes for Azure Data Exlorer (Kusto). See the complete [index](./index.md) of contents.
 
 The 'Samples' database on the 'Help' cluster contains the tables required to test these sample queries; you can easily connect to it using #connect cluster('help').database('Samples')
 
