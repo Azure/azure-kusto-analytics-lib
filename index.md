@@ -6,6 +6,7 @@
 
         1. [blackman_filter_sf()](./Series/functions/blackman_filter.csl) - Create a Blackman window low pass filter of specific width
         1. [series_fit_poly_sf()](./Series/functions/series_fit_poly.csl)<sup>[1](#footnotes)</sup> - Fit a polynomial of a specified degree to a series
+        1. [series_fit_sine_sf()](./Series/functions/series_fit_sine.csl)<sup>[1](#footnotes)</sup> - Fit a sine wave to a series
         1. [series_moving_avg_sf()](./Series/functions/series_moving_avg.csl) - Moving average of specific width
         1. [series_partial_sf()](./Series/functions/series_partial.csl) - Test for series with empty bins
         1. [series_rolling_sf()](./Series/functions/series_rolling.csl)<sup>[1](#footnotes)</sup> - Rolling window functions on a series
