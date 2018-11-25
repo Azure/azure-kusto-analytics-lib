@@ -1,10 +1,10 @@
 //
-//  series_rolling_sf() - rolling window function on series
+//  series_rolling_sf() - rolling window functions on series
 //
 //  currently supports any numpy aggregation function (can be easily extended to support inline Python function, to be defined above the rolling call)
 //
 
-.create function with (folder = "Packages\\Series", docstring = "Rolling window function on a series", skipvalidation = "true")
+.create function with (folder = "Packages\\Series", docstring = "Rolling window functions on a series", skipvalidation = "true")
 series_rolling_sf(tbl:(*), in_series:string, out_series:string, win_size:int, aggr_func:string, center:bool)
 {
     let kwargs = pack('in_series', in_series, 'out_series', out_series, 'win_size', win_size, 'aggr_func', aggr_func, 'center', center);
