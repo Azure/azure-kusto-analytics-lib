@@ -19,7 +19,7 @@
     * Queries
 
         1. [Clustering Plugins Tutorial](./ML/queries/Clustering-Plugins-Tutorial.csl) - Walkthrough of the clustering plugins for diagnosis & RCA
-        1. [Python Plugin Tutorial](./ML/queries/Python-Plugin-Tutorial.csl) - Walkthrough and demos of extending Kusto with inline Python
+        1. [Python Plugin Tutorial](./ML/queries/Python-Plugin-Tutorial.csl)<sup>[1](#footnotes)</sup> - Walkthrough and demos of extending Kusto with inline Python
 
     * Notebooks
 
