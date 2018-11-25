@@ -20,8 +20,9 @@
 
     * Functions
 
-        1. [classify_sf()](./ML/functions/Classify.csl)<sup>[1](#footnotes)</sup> - Classify (aka score) samples by a pre-trained model stored in models table
-    
+        1. [classify_sf()](./ML/functions/classify.csl)<sup>[1](#footnotes)</sup> - Classify (aka score) samples by a pre-trained model stored in models table
+        1. [kmeans_sf()](./ML/functions/kmeans.csl)<sup>[1](#footnotes)</sup> - K-Means clustering
+
     * Queries
 
         1. [Clustering Plugins Tutorial](./ML/queries/Clustering-Plugins-Tutorial.csl) - Walkthrough of the clustering plugins for diagnosis & RCA
