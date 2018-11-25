@@ -1,0 +1,51 @@
+//
+//  get_modules_version_sf()
+//
+//  Returns version information for the Python engine and the specified packages
+//
+
+.create function with (folder = "Packages\\Utils", docstring = "Returns version information for the Python engine and the specified packages")
+get_modules_version_sf(modules:(*))
+{
+    let code =
+    'import importlib\n'
+    'import sys\n'
+    '\n'
+    'result = df\n'
+    'for i in range(df.shape[0]):\n'
+    '    try:\n'
+    '        m = importlib.import_module(df.iloc[i, 0])\n'
+    '        result.loc[i, "ver"] = m.__version__\n'
+    '    except Exception as ex:\n'
+    '        result.loc[i, "ver"] = ex.msg\n'
+    'id = df.shape[0]\n'
+    'result.loc[id, df.columns[0]] = "Python"\n'
+    'result.loc[id, "ver"] = sys.version\n';
+    modules | evaluate python(code, 'df(*),ver:string')
+}
+
+
+let get_modules_version_sf = (modules:(*))
+{
+    let code =
+    'import importlib\n'
+    'import sys\n'
+    '\n'
+    'result = df\n'
+    'for i in range(df.shape[0]):\n'
+    '    try:\n'
+    '        m = importlib.import_module(df.iloc[i, 0])\n'
+    '        result.loc[i, "ver"] = m.__version__\n'
+    '    except Exception as ex:\n'
+    '        result.loc[i, "ver"] = ex.msg\n'
+    'id = df.shape[0]\n'
+    'result.loc[id, df.columns[0]] = "Python"\n'
+    'result.loc[id, "ver"] = sys.version\n';
+    modules | evaluate python(code, 'df(*),ver:string')
+}
+;
+
+datatable(module:string)
+['numpy', 'scipy', 'pandas', 'matplotlib', 'statsmodels', 'sklearn', 'azure.kusto.data', 'adal', 'tensorflow', 'keras']
+| invoke get_modules_version_sf()
+
