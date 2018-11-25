@@ -2,7 +2,8 @@
 # Azure Data Explorer Library
 Azure Data Explorer pubic library of queries, functions & notebooks
 
-This repository contains user functions, sample queries & notebookes for Azure Data Exlorer (Kusto). In order to test these queries you need to connect to a cluster & database. To store functions you need write permission for the specific database, or you can use the inline (lambda) version.
+This repository contains user functions, sample queries & notebookes for Azure Data Exlorer (Kusto). See the complete index of content
+In order to test these queries you need to connect to a cluster & database. To store functions you need write permission for the specific database, or you can use the inline (lambda) version.
 
 The Samples database on the Help cluster contains the tables required to test the sample queries, you can quickly connect to it using:
 
