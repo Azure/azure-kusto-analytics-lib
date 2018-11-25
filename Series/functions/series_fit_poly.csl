@@ -1,0 +1,87 @@
+//
+//  series_fir_poly_sf() - Fit a polynomial of a specified degree to a series
+//
+//  Using numpy.polyfit
+//
+
+.create function with (folder = "Packages\\Series", docstring = "Fit a polynomial of a specified degree to a series")
+series_fit_poly_sf(tbl:(*), in_series:string, out_series:string, degree:int)
+{
+let kwargs = pack('in_series', in_series, 'out_series', out_series, 'degree', degree);
+let code=
+    '# Fit a polynomial of required degree to the supplied series\n'
+    '\n'
+    '# Parameters:\n'
+    '#\n'
+    '#   in_series: name of the series column in df (the input table)\n'
+    '#   out_series: name of the fitted series column in result\n'
+    '#   degree: the required polynomial order\n'
+    '#\n'
+    '# The function appends the fit_series column to the original input table\n'
+    '#\n'
+    '\n'
+    'in_series = kargs["in_series"]\n'
+    'out_series = kargs["out_series"]\n'
+    'degree = kargs["degree"]\n'
+    '\n'
+    'def fit(s, deg):\n'
+    '    x = np.arange(len(s))\n'
+    '    coeff = np.polyfit(x, s, deg)\n'
+    '    p = np.poly1d(coeff)\n'
+    '    z = p(x)\n'
+    '    return z\n'
+    '\n'
+    'result = df\n'
+    'result[out_series] = df[in_series].apply(fit, args=(degree,))\n'
+;
+tbl
+| evaluate python(code, 'df(*)', kwargs)
+}
+
+//
+// lambda - for debugging
+//
+let series_fit_poly_sf=(tbl:(*), in_series:string, out_series:string, degree:int)
+{
+let kwargs = pack('in_series', in_series, 'out_series', out_series, 'degree', degree);
+let code=
+    '# Fit a polynomial of required degree to the supplied series\n'
+    '\n'
+    '# Parameters:\n'
+    '#\n'
+    '#   in_series: name of the series column in df (the input table)\n'
+    '#   out_series: name of the fitted series column in result\n'
+    '#   degree: the required polynomial order\n'
+    '#\n'
+    '# The function appends the fit_series column to the original input table\n'
+    '#\n'
+    '\n'
+    'in_series = kargs["in_series"]\n'
+    'out_series = kargs["out_series"]\n'
+    'degree = kargs["degree"]\n'
+    '\n'
+    'def fit(s, deg):\n'
+    '    x = np.arange(len(s))\n'
+    '    coeff = np.polyfit(x, s, deg)\n'
+    '    p = np.poly1d(coeff)\n'
+    '    z = p(x)\n'
+    '    return z\n'
+    '\n'
+    'result = df\n'
+    'result[out_series] = df[in_series].apply(fit, args=(degree,))\n'
+;
+tbl
+| evaluate python(code, 'df(*)', kwargs)
+};
+
+//
+// Test it
+//
+let max_t = datetime(2016-09-03);
+demo_make_series1
+| make-series num=count() on TimeStamp in range(max_t-1d, max_t, 5m) by OsVer
+| extend fnum = dynamic(null)
+| invoke series_fit_poly_sf('num', 'fnum', 5)
+| render timechart 
+
+ 

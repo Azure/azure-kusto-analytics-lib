@@ -1,0 +1,37 @@
+//
+//  blackman_filter_sf() - This function generates a Blackman window low pass FIR filter of specific window size
+//
+//  Reference https://en.wikipedia.org/w/index.php?title=Window_function but as the first & last points of blackman
+//  are 0 they are redundant for low pass filter so we trim them
+//
+
+.create function with (folder = "Packages\\Series", docstring = "Generates Blackman low pass filter of specific size")
+blackman_filter_sf(width:int)
+{
+    let w = width - 1 + 2;  //  +2 because the edge points are 0 (which is good for standard usage of it as window on time domain but redundant for us  
+    toscalar(
+    range x from 1 to w-1 step 1    //  here we trim the first and last redundant points
+    | project wx = 0.42 - 0.5*cos(2*pi()*x/w) + 0.08*cos(4*pi()*x/w)
+    | summarize makelist(wx, 1000000)
+    );
+}
+
+//
+// lambda - for debugging
+//
+let blackman_filter_sf = (width:int)
+{
+    let w = width - 1 + 2;  //  +2 because the edge points are 0 (which is good for standard usage of it as window on time domain but redundant for us  
+    toscalar(
+    range x from 1 to w-1 step 1    //  here we trim the first and last redundant points
+    | project wx = 0.42 - 0.5*cos(2*pi()*x/w) + 0.08*cos(4*pi()*x/w)
+    | summarize makelist(wx, 1000000)
+    );
+}
+;
+
+print range(1, 17, 1)
+| extend fx=blackman_filter_sf(17)
+| render linechart 
+
+
