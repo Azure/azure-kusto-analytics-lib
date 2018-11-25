@@ -1,20 +1,11 @@
 
 # Azure Data Explorer Library
-Azure Data Explorer pubic library of queries, functions & notebooks
 
-This repository contains user functions, sample queries & notebookes for Azure Data Exlorer (Kusto). See the complete index of content
-In order to test these queries you need to connect to a cluster & database. To store functions you need write permission for the specific database, or you can use the inline (lambda) version.
+This repository contains user functions, sample queries & notebookes for Azure Data Exlorer (Kusto). See the complete [index](.\index.md) of contents.
 
-The Samples database on the Help cluster contains the tables required to test the sample queries, you can quickly connect to it using:
+The 'Samples' database on the 'Help' cluster contains the tables required to test these sample queries; you can easily connect to it using #connect cluster('help').database('Samples')
 
-#connect cluster('help').database('Samples')
-
-The structure of the repository:
-* top level contains thematic folders (e.g. ML, Time Series etc.)
-* in each thematic folder there are 3 sub-folders:
-    * funtions - containing definition of stored and/or lambda functions
-    * queries - demo queries
-    * notebooks - demo Jupyter/Databricks notebooks
+However, in order to store functions you need to have write permission for the specific database; alternatively, you can use the inline (lambda) version.
 
 # Contributing
 
