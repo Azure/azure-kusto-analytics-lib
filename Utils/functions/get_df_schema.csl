@@ -1,0 +1,64 @@
+//
+//  get_df_schema_sf()
+//
+//  Returns the schema of df (the DataFrame of the input table)
+//
+
+.create function with (folder = "Packages\\Utils", docstring = "Returns the schema of df")
+get_df_schema_sf(tbl:(*))
+{
+let code = 
+    'r = pd.DataFrame()\n'
+    '(rows, cols) = df.shape\n'
+    'r = r.append({"col_name": "df shape", "col_type": str(df.shape)}, ignore_index=True)\n'
+    '\n'
+    'for i in range(cols):\n'
+    '    col_type = type(df.iloc[0, i])\n'
+    '    clen = len(df.iloc[0, i]) if col_type == list else 1\n'
+    '    d = {"col_name": df.columns[i], "col_type": str(col_type), "col_len":clen}\n'
+    '    elem_type = str(type(df.iloc[0, i][0])) if clen > 1 else ""\n'
+    '    elem = str(df.iloc[0, i][0]) if clen > 1 else str(df.iloc[0, i])\n'
+    '    d.update({"elem_type": elem_type, "elem_0": elem})\n'
+    '    r = r.append(d, ignore_index=True)\n'
+    '\n'
+    'result = r\n';
+//
+tbl
+| evaluate python(code, 'col_name:string,col_type:string,col_len:long,elem_type:string,elem_0:string')
+}
+
+//
+// lambda for testing
+//
+let get_df_schema_sf=(tbl:(*))
+{
+let code = 
+    'r = pd.DataFrame()\n'
+    '(rows, cols) = df.shape\n'
+    'r = r.append({"col_name": "df shape", "col_type": str(df.shape)}, ignore_index=True)\n'
+    '\n'
+    'for i in range(cols):\n'
+    '    col_type = type(df.iloc[0, i])\n'
+    '    clen = len(df.iloc[0, i]) if col_type == list else 1\n'
+    '    d = {"col_name": df.columns[i], "col_type": str(col_type), "col_len":clen}\n'
+    '    elem_type = str(type(df.iloc[0, i][0])) if clen > 1 else ""\n'
+    '    elem = str(df.iloc[0, i][0]) if clen > 1 else str(df.iloc[0, i])\n'
+    '    d.update({"elem_type": elem_type, "elem_0": elem})\n'
+    '    r = r.append(d, ignore_index=True)\n'
+    '\n'
+    'result = r\n';
+//
+tbl
+| evaluate python(code, 'col_name:string,col_type:string,col_len:long,elem_type:string,elem_0:string')
+}
+;
+
+//
+//  Testing
+//
+let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
+let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
+demo_make_series1
+| make-series num=count() on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| invoke get_df_schema_sf()
+ 

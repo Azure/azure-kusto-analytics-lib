@@ -44,7 +44,8 @@
 1. **Utils**
 
     * Functions
-        1. [get_modules_version_sf()](./Utils/functions/get_modules_version.csl)<sup>[1](#footnotes)</sup> - Aggregation functions on a series
+        1. [get_df_schema_sf()](./Utils/functions/get_df_schema.csl)<sup>[1](#footnotes)</sup> - Returns the schema of df (the DataFrame of the input table)
+        1. [get_modules_version_sf()](./Utils/functions/get_modules_version.csl)<sup>[1](#footnotes)</sup> - Returns version information for the Python engine and the specified packages
 
 
 
