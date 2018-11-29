@@ -53,5 +53,5 @@
 
 **Notes:**
 
-<sup>1</sup> Implementation using inline Python plugin
+<sup>1</sup> Implementation using inline Python plugin. NOTE: currently the Python plugin is in preview. Please be aware that the calling syntax is expected to change
 </f>
