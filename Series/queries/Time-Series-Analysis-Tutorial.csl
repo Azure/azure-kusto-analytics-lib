@@ -146,23 +146,39 @@ demo_make_series1
 //  Note that in this example series_decompose_anomalies() is called implicitly with default values by the "| render anomalychart" clause
 //
 let min_t = datetime(2016-08-29);
-let max_t = datetime(2016-09-03);
+let max_t = datetime(2016-09-02);
 demo_make_series1
 | make-series num=count() on TimeStamp in range(min_t, max_t, 10m) by OsVer
 | where OsVer == 'Windows 10'
-| render anomalychart with(title='Web app. traffic of 5 days, Point Anomalies by Time Series Decmposition')
+| render anomalychart with(title='Web app. traffic of 4 days, Point Anomalies by Time Series Decmposition')
 
 //
 //  Call series_decompose_anomalies() explicitly to increase the anomaly threshold from default 1.5 to 3.0 (detecting strong anomalies only)
 //  Note that in this example we use "| render anomalychart with anomalycolumns=ad" just to render the anomalies as bold points on top of the series charts
 //
 let min_t = datetime(2016-08-29);
-let max_t = datetime(2016-09-03);
+let max_t = datetime(2016-09-02);
 demo_make_series1
 | make-series num=count() on TimeStamp in range(min_t, max_t, 10m) by OsVer
 | where OsVer == 'Windows 10'
 | extend anomalies = series_decompose_anomalies(num, 2.0)
-| render anomalychart with(anomalycolumns=anomalies, title='Web app. traffic of 5 days, Point Anomalies by Time Series Decmposition, Anomaly threshold = 2.0')
+| render anomalychart with(anomalycolumns=anomalies, title='Web app. traffic of 4 days, Point Anomalies by Time Series Decmposition, Anomaly threshold = 2.0')
+
+//
+//  series_decompose_forecast()
+//
+//  Forecasting by decomposing the series using series_decompose() and then extrapolate the baseline for the next week
+//
+let min_t = datetime(2017-01-05);
+let max_t = datetime(2017-02-03 22:00);
+let dt = 2h;
+let horizon=7d;
+demo_make_series_2
+| make-series num=avg(num) on TimeStamp in range(min_t, max_t, dt) by sid 
+| extend TimeStamp=array_concat(TimeStamp, range(max_t+dt, max_t+horizon, dt)), num=array_concat(num, repeat(0, toint(horizon/dt)))
+| where sid == 'TS1'   //  select a single time series just to get cleaner visualization
+| extend forecast = series_decompose_forecast(num, toint(horizon/dt))
+| render timechart with(title='Web app. traffic of a month, forecasting the next week by Time Series Decmposition')
 
 //
 //  series_decompose_forecast()
@@ -170,7 +186,7 @@ demo_make_series1
 //  Forecasting by decomposing the series using series_decompose() and then extrapolate the baseline for the next day
 //
 let min_t = datetime(2016-08-29);
-let max_t = datetime(2016-09-03);
+let max_t = datetime(2016-09-02);
 let dt = 10m;
 let horizon=1d;
 demo_make_series1
@@ -178,7 +194,7 @@ demo_make_series1
 | extend TimeStamp=array_concat(TimeStamp, range(max_t+dt, max_t+horizon, dt)), num=array_concat(num, repeat(0, toint(horizon/dt)))
 | where OsVer == 'Windows 10'   //  select a single time series just to get cleaner visualization
 | extend forecast = series_decompose_forecast(num, toint(horizon/dt))
-| render timechart with(title='Web app. traffic of 5 days, forecasting the next day by Time Series Decmposition')
+| render timechart with(title='Web app. traffic of 4 days, forecasting the next day by Time Series Decmposition')
 
 //
 //  Applying the above function on big set of time series is powerful!
