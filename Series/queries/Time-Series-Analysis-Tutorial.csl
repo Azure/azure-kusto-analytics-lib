@@ -2,7 +2,7 @@
 //  Time Series Analysis operator & functions
 //
 
-#connect cluster('help').database('Samples')
+#connect cluster('demo11.westus').database('ML') 
 
 //  make-series operator
 //
@@ -173,7 +173,7 @@ let min_t = datetime(2017-01-05);
 let max_t = datetime(2017-02-03 22:00);
 let dt = 2h;
 let horizon=7d;
-demo_make_series_2
+demo_make_series2
 | make-series num=avg(num) on TimeStamp in range(min_t, max_t, dt) by sid 
 | extend TimeStamp=array_concat(TimeStamp, range(max_t+dt, max_t+horizon, dt)), num=array_concat(num, repeat(0, toint(horizon/dt)))
 | where sid == 'TS1'   //  select a single time series just to get cleaner visualization
@@ -265,4 +265,3 @@ demo_many_series1
 | extend series_fit_2lines(reads)
 | project Loc, Op, DB, TIMESTAMP, reads 
 | render timechart with(title='Service Traffic Outage for 2 instances (out of 18339)')
- 
