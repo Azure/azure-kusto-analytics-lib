@@ -2,7 +2,7 @@
 //  Clustering plugins for diagnosis and RCA
 //
 
-#connect cluster('help').database('Samples')
+#connect cluster('demo11.westus').database('ML') 
 
 //  Demo table contains 1 week of service exceptions
 //

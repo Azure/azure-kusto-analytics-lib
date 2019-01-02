@@ -2,7 +2,7 @@
 //  Demo of KQL + inline Python
 //
 
-#connect cluster('help').database('Samples')
+#connect cluster('demo11.westus').database('ML')
 
 //  Writing & pasting this simple Python script in KE as is doesn't work, it generates parsing errors by KQL
 
@@ -199,4 +199,3 @@ OccupancyDetection
 | fork
 (summarize n=count() by Occupancy, pred_Occupancy)                          //  confusion matrix
 (summarize accuracy = 100.0*count(Occupancy == pred_Occupancy)/count())     //  accuracy
-
