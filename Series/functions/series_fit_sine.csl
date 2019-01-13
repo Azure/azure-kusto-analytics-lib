@@ -8,27 +8,28 @@
 .create function with (folder = "Packages\\Series", docstring = "Fit a sine wave to a series")
 series_fit_sine_sf(tbl:(*), in_series:string, out_series:string, seasonality:long)
 {
-let kwargs = pack('in_series', in_series, 'out_series', out_series, 'seasonality', seasonality);
-let code=
-    '\n'
-    'in_series = kargs["in_series"]\n'
-    'out_series = kargs["out_series"]\n'
-    'seasonality = kargs["seasonality"]\n'
-    '\n'
-    'from scipy.optimize import curve_fit\n'
-    'def fit(y, x, s):\n'
-    '    def fit_func(t, gain, level, T, phase):\n'
-    '        return gain * np.sin(t*2*np.pi/T-phase) + level\n'
-    '    soft_min, med, soft_max = pd.Series(y).quantile([0.05, 0.5, 0.95])\n'
-    '    popt, pcov = curve_fit(fit_func, x, y, p0=[(soft_min+soft_max)/2, med, s, 0])\n'
-    '    return fit_func(x, *popt)\n'
-    '\n'
-    'x = np.arange(len(df[in_series][0]))\n'
-    'result = df\n'
-    'result[out_series] = df[in_series].apply(fit, args=(x, seasonality))\n'
-;
-tbl
-| evaluate python(code, 'df(*)', kwargs)
+    let kwargs = pack('in_series', in_series, 'out_series', out_series, 'seasonality', seasonality);
+    let code=
+        '\n'
+        'in_series = kargs["in_series"]\n'
+        'out_series = kargs["out_series"]\n'
+        'seasonality = kargs["seasonality"]\n'
+        '\n'
+        'from scipy.optimize import curve_fit\n'
+        'def fit(y, x, s):\n'
+        '    def fit_func(t, gain, level, T, phase):\n'
+        '        return gain * np.sin(t*2*np.pi/T-phase) + level\n'
+        '    soft_min, med, soft_max = pd.Series(y).quantile([0.05, 0.5, 0.95])\n'
+        '    popt, pcov = curve_fit(fit_func, x, y, p0=[(soft_min+soft_max)/2, med, s, 0])\n'
+        '    return fit_func(x, *popt)\n'
+        '\n'
+        'x = np.arange(len(df[in_series][0]))\n'
+        'result = df\n'
+        'result[out_series] = df[in_series].apply(fit, args=(x, seasonality))\n'
+    ;
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
 }
 
 //
@@ -36,27 +37,28 @@ tbl
 //
 let series_fit_sine_sf=(tbl:(*), in_series:string, out_series:string, seasonality:long)
 {
-let kwargs = pack('in_series', in_series, 'out_series', out_series, 'seasonality', seasonality);
-let code=
-    '\n'
-    'in_series = kargs["in_series"]\n'
-    'out_series = kargs["out_series"]\n'
-    'seasonality = kargs["seasonality"]\n'
-    '\n'
-    'from scipy.optimize import curve_fit\n'
-    'def fit(y, x, s):\n'
-    '    def fit_func(t, gain, level, T, phase):\n'
-    '        return gain * np.sin(t*2*np.pi/T-phase) + level\n'
-    '    soft_min, med, soft_max = pd.Series(y).quantile([0.05, 0.5, 0.95])\n'
-    '    popt, pcov = curve_fit(fit_func, x, y, p0=[(soft_min+soft_max)/2, med, s, 0])\n'
-    '    return fit_func(x, *popt)\n'
-    '\n'
-    'x = np.arange(len(df[in_series][0]))\n'
-    'result = df\n'
-    'result[out_series] = df[in_series].apply(fit, args=(x, seasonality))\n'
-;
-tbl
-| evaluate python(code, 'df(*)', kwargs)
+    let kwargs = pack('in_series', in_series, 'out_series', out_series, 'seasonality', seasonality);
+    let code=
+        '\n'
+        'in_series = kargs["in_series"]\n'
+        'out_series = kargs["out_series"]\n'
+        'seasonality = kargs["seasonality"]\n'
+        '\n'
+        'from scipy.optimize import curve_fit\n'
+        'def fit(y, x, s):\n'
+        '    def fit_func(t, gain, level, T, phase):\n'
+        '        return gain * np.sin(t*2*np.pi/T-phase) + level\n'
+        '    soft_min, med, soft_max = pd.Series(y).quantile([0.05, 0.5, 0.95])\n'
+        '    popt, pcov = curve_fit(fit_func, x, y, p0=[(soft_min+soft_max)/2, med, s, 0])\n'
+        '    return fit_func(x, *popt)\n'
+        '\n'
+        'x = np.arange(len(df[in_series][0]))\n'
+        'result = df\n'
+        'result[out_series] = df[in_series].apply(fit, args=(x, seasonality))\n'
+    ;
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
 };
 
 //

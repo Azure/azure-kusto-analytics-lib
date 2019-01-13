@@ -8,31 +8,33 @@
 series_summarize_sf(tbl:(*), in_series:string, out_col:string, aggr_func:string, aggr_params:dynamic) // =dynamic(null)) Bug: dynamic default is not supported
 {
     let kwargs = pack('in_series', in_series, 'out_col', out_col, 'aggr_func', aggr_func, 'aggr_params', aggr_params);
-    tbl
-    | evaluate python(
+    let code =
         'in_series = kargs["in_series"]\n'
         'out_col = kargs["out_col"]\n'
         'aggr_func = kargs["aggr_func"]\n'
         'aggr_params = kargs["aggr_params"]\n'
         'result = df\n'
         'func = getattr(np, aggr_func)\n'
-        'result[out_col] = df[in_series].apply(func, args=(aggr_params,))\n'
-        , 'df(*)', kwargs)
+        'result[out_col] = df[in_series].apply(func, args=(aggr_params,))\n';
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
 }
 
 let series_summarize_sf = (tbl:(*), in_series:string, out_col:string, aggr_func:string, aggr_params:dynamic=dynamic(null))
 {
     let kwargs = pack('in_series', in_series, 'out_col', out_col, 'aggr_func', aggr_func, 'aggr_params', aggr_params);
-    tbl
-    | evaluate python(
+    let code =
         'in_series = kargs["in_series"]\n'
         'out_col = kargs["out_col"]\n'
         'aggr_func = kargs["aggr_func"]\n'
         'aggr_params = kargs["aggr_params"]\n'
         'result = df\n'
         'func = getattr(np, aggr_func)\n'
-        'result[out_col] = df[in_series].apply(func, args=(aggr_params,))\n'
-        , 'df(*)', kwargs)
+        'result[out_col] = df[in_series].apply(func, args=(aggr_params,))\n';
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
 }
 ;
 

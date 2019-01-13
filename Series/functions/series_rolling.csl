@@ -8,8 +8,7 @@
 series_rolling_sf(tbl:(*), in_series:string, out_series:string, win_size:int, aggr_func:string, center:bool)
 {
     let kwargs = pack('in_series', in_series, 'out_series', out_series, 'win_size', win_size, 'aggr_func', aggr_func, 'center', center);
-    tbl
-    | evaluate python(
+    let code =
         '\n'
         'in_series = kargs["in_series"]\n'
         '\n'
@@ -21,8 +20,10 @@ series_rolling_sf(tbl:(*), in_series:string, out_series:string, win_size:int, ag
         'in_s = df[in_series]\n'
         'func = getattr(np, aggr_func)\n'
         'result[out_series] = list(pd.Series(in_s[i]).rolling(win_size, center=center, min_periods=1).apply(func).values for i in range(len(in_s)))\n'
-        '\n'
-        , 'df(*)', kwargs)
+        '\n';
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
 }
 
 let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
@@ -40,8 +41,7 @@ demo_make_series1
 let series_rolling_sf = (tbl:(*), in_series:string, out_series:string, win_size:int, aggr_func:string, center:bool)
 {
     let kwargs = pack('in_series', in_series, 'out_series', out_series, 'win_size', win_size, 'aggr_func', aggr_func, 'center', center);
-    tbl
-    | evaluate python(
+    let code =
         '\n'
         'in_series = kargs["in_series"]\n'
         '\n'
@@ -53,10 +53,13 @@ let series_rolling_sf = (tbl:(*), in_series:string, out_series:string, win_size:
         'in_s = df[in_series]\n'
         'func = getattr(np, aggr_func)\n'
         'result[out_series] = list(pd.Series(in_s[i]).rolling(win_size, center=center, min_periods=1).apply(func).values for i in range(len(in_s)))\n'
-        '\n'
-        , 'df(*)', kwargs)
+        '\n';
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs)     //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)       //  new plugin syntax
 }
 ;
+
 //
 // Test
 //

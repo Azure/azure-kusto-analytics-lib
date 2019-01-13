@@ -27,7 +27,9 @@ classify_sf(samples:(*), models_tbl:(name:string, timestamp:datetime, model:stri
     'result[pred_col] = pd.DataFrame(predictions, columns=[pred_col])'
     '\n'
     ;
-    samples | evaluate python(code, 'df(*)', kwargs)
+    samples
+       | evaluate python_aml(code, 'df(*)', kwargs)     //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)       //  new plugin syntax
 }
 
 //
@@ -54,7 +56,9 @@ let classify_sf=(samples:(*), models_tbl:(name:string, timestamp:datetime, model
     'result[pred_col] = pd.DataFrame(predictions, columns=[pred_col])'
     '\n'
     ;
-    samples | evaluate python(code, 'df(*)', kwargs)
+    samples
+       | evaluate python_aml(code, 'df(*)', kwargs)     //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)       //  new plugin syntax
 };
 
 //

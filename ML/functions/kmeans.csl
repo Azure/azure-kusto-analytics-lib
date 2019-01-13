@@ -7,23 +7,24 @@
 .create function with (folder = "Packages\\ML", docstring = "K-Means clustering")
 kmeans_sf(tbl:(*), k:int, features:dynamic, cluster_col:string)
 {
-let args = pack('k', k, 'features', features, 'cluster_col', cluster_col);
-let code =
-    '\n'
-    'from sklearn.cluster import KMeans\n'
-    '\n'
-    'k = kargs["k"]\n'
-    'features = kargs["features"]\n'
-    'cluster_col = kargs["cluster_col"]\n'
-    '\n'
-    'km = KMeans(n_clusters=k)\n'
-    'df1 = df[features]\n'
-    'km.fit(df1)\n'
-    'result = df\n'
-    'result[cluster_col] = km.labels_\n'
-    ;
-tbl
-| evaluate python(code, 'df(*)', args)
+    let kwargs = pack('k', k, 'features', features, 'cluster_col', cluster_col);
+    let code =
+        '\n'
+        'from sklearn.cluster import KMeans\n'
+        '\n'
+        'k = kargs["k"]\n'
+        'features = kargs["features"]\n'
+        'cluster_col = kargs["cluster_col"]\n'
+        '\n'
+        'km = KMeans(n_clusters=k)\n'
+        'df1 = df[features]\n'
+        'km.fit(df1)\n'
+        'result = df\n'
+        'result[cluster_col] = km.labels_\n'
+        ;
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
 }
 
 //
@@ -31,23 +32,24 @@ tbl
 //
 let kmeans_sf=(tbl:(*), k:int, features:dynamic, cluster_col:string)
 {
-let args = pack('k', k, 'features', features, 'cluster_col', cluster_col);
-let code =
-    '\n'
-    'from sklearn.cluster import KMeans\n'
-    '\n'
-    'k = kargs["k"]\n'
-    'features = kargs["features"]\n'
-    'cluster_col = kargs["cluster_col"]\n'
-    '\n'
-    'km = KMeans(n_clusters=k)\n'
-    'df1 = df[features]\n'
-    'km.fit(df1)\n'
-    'result = df\n'
-    'result[cluster_col] = km.labels_\n'
-    ;
-tbl
-| evaluate python(code, 'df(*)', args)
+    let kwargs = pack('k', k, 'features', features, 'cluster_col', cluster_col);
+    let code =
+        '\n'
+        'from sklearn.cluster import KMeans\n'
+        '\n'
+        'k = kargs["k"]\n'
+        'features = kargs["features"]\n'
+        'cluster_col = kargs["cluster_col"]\n'
+        '\n'
+        'km = KMeans(n_clusters=k)\n'
+        'df1 = df[features]\n'
+        'km.fit(df1)\n'
+        'result = df\n'
+        'result[cluster_col] = km.labels_\n'
+        ;
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
 };
 
 //

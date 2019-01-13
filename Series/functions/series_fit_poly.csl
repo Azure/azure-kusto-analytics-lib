@@ -7,25 +7,26 @@
 .create function with (folder = "Packages\\Series", docstring = "Fit a polynomial of a specified degree to a series")
 series_fit_poly_sf(tbl:(*), in_series:string, out_series:string, degree:int)
 {
-let kwargs = pack('in_series', in_series, 'out_series', out_series, 'degree', degree);
-let code=
-    '\n'
-    'in_series = kargs["in_series"]\n'
-    'out_series = kargs["out_series"]\n'
-    'degree = kargs["degree"]\n'
-    '\n'
-    'def fit(s, deg):\n'
-    '    x = np.arange(len(s))\n'
-    '    coeff = np.polyfit(x, s, deg)\n'
-    '    p = np.poly1d(coeff)\n'
-    '    z = p(x)\n'
-    '    return z\n'
-    '\n'
-    'result = df\n'
-    'result[out_series] = df[in_series].apply(fit, args=(degree,))\n'
-;
-tbl
-| evaluate python(code, 'df(*)', kwargs)
+    let kwargs = pack('in_series', in_series, 'out_series', out_series, 'degree', degree);
+    let code=
+        '\n'
+        'in_series = kargs["in_series"]\n'
+        'out_series = kargs["out_series"]\n'
+        'degree = kargs["degree"]\n'
+        '\n'
+        'def fit(s, deg):\n'
+        '    x = np.arange(len(s))\n'
+        '    coeff = np.polyfit(x, s, deg)\n'
+        '    p = np.poly1d(coeff)\n'
+        '    z = p(x)\n'
+        '    return z\n'
+        '\n'
+        'result = df\n'
+        'result[out_series] = df[in_series].apply(fit, args=(degree,))\n'
+    ;
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs)    //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)      //  new plugin syntax  
 }
 
 //
@@ -33,25 +34,26 @@ tbl
 //
 let series_fit_poly_sf=(tbl:(*), in_series:string, out_series:string, degree:int)
 {
-let kwargs = pack('in_series', in_series, 'out_series', out_series, 'degree', degree);
-let code=
-    '\n'
-    'in_series = kargs["in_series"]\n'
-    'out_series = kargs["out_series"]\n'
-    'degree = kargs["degree"]\n'
-    '\n'
-    'def fit(s, deg):\n'
-    '    x = np.arange(len(s))\n'
-    '    coeff = np.polyfit(x, s, deg)\n'
-    '    p = np.poly1d(coeff)\n'
-    '    z = p(x)\n'
-    '    return z\n'
-    '\n'
-    'result = df\n'
-    'result[out_series] = df[in_series].apply(fit, args=(degree,))\n'
-;
-tbl
-| evaluate python(code, 'df(*)', kwargs)
+    let kwargs = pack('in_series', in_series, 'out_series', out_series, 'degree', degree);
+    let code=
+        '\n'
+        'in_series = kargs["in_series"]\n'
+        'out_series = kargs["out_series"]\n'
+        'degree = kargs["degree"]\n'
+        '\n'
+        'def fit(s, deg):\n'
+        '    x = np.arange(len(s))\n'
+        '    coeff = np.polyfit(x, s, deg)\n'
+        '    p = np.poly1d(coeff)\n'
+        '    z = p(x)\n'
+        '    return z\n'
+        '\n'
+        'result = df\n'
+        'result[out_series] = df[in_series].apply(fit, args=(degree,))\n'
+    ;
+    tbl
+       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
+//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax  
 };
 
 //

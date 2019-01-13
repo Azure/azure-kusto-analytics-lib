@@ -15,15 +15,16 @@ get_modules_version_sf(modules:(*))
     'for i in range(df.shape[0]):\n'
     '    try:\n'
     '        m = importlib.import_module(df.iloc[i, 0])\n'
-    '        result.loc[i, "ver"] = m.__version__\n'
+    '        result.loc[i, "ver"] = m.__version__ if hasattr(m, "__version__") else "missing __version__ attribute"\n'
     '    except Exception as ex:\n'
-    '        result.loc[i, "ver"] = ex.msg\n'
+    '        result.loc[i, "ver"] = "ERROR: " + (ex.msg if hasattr(ex, "msg") else "exception, no msg")\n'
     'id = df.shape[0]\n'
     'result.loc[id, df.columns[0]] = "Python"\n'
     'result.loc[id, "ver"] = sys.version\n';
-    modules | evaluate python(code, 'df(*),ver:string')
+    modules
+        | evaluate python(code, 'df(*),ver:string')     //  old plugin syntax
+//      | evaluate python(typeof(*, ver:string), code)  //  new plugin syntax
 }
-
 
 let get_modules_version_sf = (modules:(*))
 {
@@ -35,17 +36,18 @@ let get_modules_version_sf = (modules:(*))
     'for i in range(df.shape[0]):\n'
     '    try:\n'
     '        m = importlib.import_module(df.iloc[i, 0])\n'
-    '        result.loc[i, "ver"] = m.__version__\n'
+    '        result.loc[i, "ver"] = m.__version__ if hasattr(m, "__version__") else "missing __version__ attribute"\n'
     '    except Exception as ex:\n'
-    '        result.loc[i, "ver"] = ex.msg\n'
+    '        result.loc[i, "ver"] = "ERROR: " + (ex.msg if hasattr(ex, "msg") else "exception, no msg")\n'
     'id = df.shape[0]\n'
     'result.loc[id, df.columns[0]] = "Python"\n'
     'result.loc[id, "ver"] = sys.version\n';
-    modules | evaluate python(code, 'df(*),ver:string')
+    modules
+        | evaluate python(code, 'df(*),ver:string')     //  old plugin syntax
+//      | evaluate python(typeof(*, ver:string), code)  //  new plugin syntax
 }
 ;
 
 datatable(module:string)
-['numpy', 'scipy', 'pandas', 'matplotlib', 'statsmodels', 'sklearn', 'azure.kusto.data', 'adal', 'tensorflow', 'keras']
+['numpy', 'scipy', 'pandas', 'statsmodels', 'sklearn', 'tensorflow', 'keras']
 | invoke get_modules_version_sf()
-
