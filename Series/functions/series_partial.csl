@@ -7,6 +7,8 @@ series_partial_sf(series:dynamic, empty_val:double)
     max_val == 1 
 }
 
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
+
 let series_partial_sf = (series:dynamic, empty_val:double)
 {
     let se = series_equals(series, repeat(empty_val, array_length(series)));

@@ -4,6 +4,8 @@ series_moving_avg_sf(series:dynamic, size:int, center:bool=false)
     series_fir(series, repeat(1, size), true, center)
 }
 
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
+
 let series_moving_avg_sf = (series:dynamic, size:int, center:bool=false)
 {
     series_fir(series, repeat(1, size), true, center)

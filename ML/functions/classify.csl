@@ -28,9 +28,10 @@ classify_sf(samples:(*), models_tbl:(name:string, timestamp:datetime, model:stri
     '\n'
     ;
     samples
-       | evaluate python_aml(code, 'df(*)', kwargs)     //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)       //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 }
+
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 //
 // lambda for testing
@@ -57,8 +58,7 @@ let classify_sf=(samples:(*), models_tbl:(name:string, timestamp:datetime, model
     '\n'
     ;
     samples
-       | evaluate python_aml(code, 'df(*)', kwargs)     //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)       //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 };
 
 //

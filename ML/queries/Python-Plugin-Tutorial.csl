@@ -2,7 +2,7 @@
 //  Demo of KQL + inline Python
 //
 
-#connect cluster('demo11.westus').database('ML')
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 //  Writing & pasting this simple Python script in KE as is doesn't work, it generates parsing errors by KQL
 
@@ -29,7 +29,7 @@ let code =
 'result["x3"] = df["x"].pow(3)\n'
 ;
 range x from 1 to 10 step 1
-| evaluate python(code, 'df(*), x2:int, x3:int')
+| evaluate python(typeof(*, x2:int, x3:int), code)
 
 //
 //  Demo of fitting time series with high order polynomial using numpy.polyfit
@@ -39,14 +39,14 @@ range x from 1 to 10 step 1
 //
 let max_t = datetime(2016-09-03);
 demo_make_series1
-| make-series num=count() on TimeStamp in range(max_t-1d, max_t, 5m) by OsVer
+| make-series num=count() on TimeStamp from max_t-1d to max_t step 5m by OsVer
 | render timechart 
 
 // Linear fit (1st degree polynom) using native series_fit_line() 
 //
 let max_t = datetime(2016-09-03);
 demo_make_series1
-| make-series num=count() on TimeStamp in range(max_t-1d, max_t, 5m) by OsVer
+| make-series num=count() on TimeStamp from max_t-1d to max_t step 5m by OsVer
 | extend series_fit_line(num)
 | render timechart 
 
@@ -59,7 +59,7 @@ let series_fit_poly = (tbl:(*), col:string, degree:int)
 {
 let kwargs = pack('col', col, 'degree', degree);
 tbl
-| evaluate python(
+| evaluate python(typeof(*, fnum:dynamic), 
     '\n'
     'col = kargs["col"]\n'
     'degree = kargs["degree"]\n'
@@ -74,12 +74,12 @@ tbl
     'result = df\n'
     'result["fnum"] = df[col].apply(fit, deg=degree)\n'
     '\n'
-,'df(*), fnum:dynamic', kwargs)
+, kwargs)
 };
 //
 let max_t = datetime(2016-09-03);
 demo_make_series1
-| make-series num=count() on TimeStamp in range(max_t-1d, max_t, 5m) by OsVer
+| make-series num=count() on TimeStamp from max_t-1d to max_t step 5m by OsVer
 | extend series_fit_line(num)
 | invoke series_fit_poly('num', 5)
 | render timechart 
@@ -104,32 +104,34 @@ OccupancyDetection
 //
 //  K-Means clustering on the sensors measurements
 //
-//  Prepend the cluster id per each record
+//  Append cluster id per each record
 //
-let kmeans=(tbl:(*), k:int, features:dynamic)
+let kmeans_sf=(tbl:(*), k:int, features:dynamic, cluster_col:string)
 {
-let args = pack('k', k, 'features', features);
-let code =
-    '\n'
-    'from sklearn.cluster import KMeans\n'
-    '\n'
-    'k = kargs["k"]\n'
-    'features = kargs["features"]\n'
-    '\n'
-    'km = KMeans(n_clusters=k)\n'
-    'df1 = df[features]\n'
-    'km.fit(df1)\n'
-    'result = df\n'
-    'result.insert(0, "cluster_id", km.labels_)\n'
-    ;
-tbl
-| evaluate python(code, 'cluster_id:int, df(*)', args)
+    let kwargs = pack('k', k, 'features', features, 'cluster_col', cluster_col);
+    let code =
+        '\n'
+        'from sklearn.cluster import KMeans\n'
+        '\n'
+        'k = kargs["k"]\n'
+        'features = kargs["features"]\n'
+        'cluster_col = kargs["cluster_col"]\n'
+        '\n'
+        'km = KMeans(n_clusters=k)\n'
+        'df1 = df[features]\n'
+        'km.fit(df1)\n'
+        'result = df\n'
+        'result[cluster_col] = km.labels_\n'
+        ;
+    tbl
+    | evaluate python(typeof(*), code, kwargs)
 };
 //
 let num_clusters=5;
 //
 OccupancyDetection
-| invoke kmeans(num_clusters, pack_array("Temperature", "Humidity", "Light", "CO2", "HumidityRatio"))
+| extend cluster_id=double(null)
+| invoke kmeans_sf(num_clusters, pack_array("Temperature", "Humidity", "Light", "CO2", "HumidityRatio"), "cluster_id")
 | sample 10
 
 //
@@ -149,11 +151,11 @@ let code =
     'df1 = df[features]\n'
     'km.fit(df1)\n'
     'result = pd.DataFrame(km.cluster_centers_, columns=df1.columns)\n'
-    'result.insert(0, "num", pd.DataFrame(km.labels_, columns=["n"]).groupby("n").size())\n'    
-    'result.insert(0, "cluster_id", range(k))\n'
+    'result.insert(df.shape[1], "num", pd.DataFrame(km.labels_, columns=["n"]).groupby("n").size())\n'    
+    'result.insert(df.shape[1], "cluster_id", range(k))\n'
     ;
 tbl
-| evaluate python(code, "cluster_id:int, num:long, df(*)", args)
+| evaluate python(typeof(*, cluster_id:int, num:long), code, args)
 };
 //
 let num_clusters=5;
@@ -190,7 +192,7 @@ let classify_sf=(samples:(*), models_tbl:(name:string, timestamp:datetime, model
     'result[pred_col] = pd.DataFrame(predictions, columns=[pred_col])'
     '\n'
     ;
-    samples | evaluate python(code, 'df(*)', kwargs)
+    samples | evaluate python(typeof(*), code, kwargs)
 };
 OccupancyDetection 
 | where Test == 1

@@ -22,9 +22,10 @@ get_modules_version_sf(modules:(*))
     'result.loc[id, df.columns[0]] = "Python"\n'
     'result.loc[id, "ver"] = sys.version\n';
     modules
-        | evaluate python_aml(code, 'df(*),ver:string') //  old plugin syntax
-//      | evaluate python(typeof(*, ver:string), code)  //  new plugin syntax
+    | evaluate python(typeof(*, ver:string), code)
 }
+
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 let get_modules_version_sf = (modules:(*))
 {
@@ -43,8 +44,7 @@ let get_modules_version_sf = (modules:(*))
     'result.loc[id, df.columns[0]] = "Python"\n'
     'result.loc[id, "ver"] = sys.version\n';
     modules
-        | evaluate python_aml(code, 'df(*),ver:string') //  old plugin syntax
-//      | evaluate python(typeof(*, ver:string), code)  //  new plugin syntax
+    | evaluate python(typeof(*, ver:string), code)
 }
 ;
 

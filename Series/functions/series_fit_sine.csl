@@ -28,9 +28,10 @@ series_fit_sine_sf(tbl:(*), in_series:string, out_series:string, seasonality:lon
         'result[out_series] = df[in_series].apply(fit, args=(x, seasonality))\n'
     ;
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 }
+
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 //
 // lambda - for debugging
@@ -57,8 +58,7 @@ let series_fit_sine_sf=(tbl:(*), in_series:string, out_series:string, seasonalit
         'result[out_series] = df[in_series].apply(fit, args=(x, seasonality))\n'
     ;
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 };
 
 //
@@ -66,7 +66,7 @@ let series_fit_sine_sf=(tbl:(*), in_series:string, out_series:string, seasonalit
 //
 let max_t = datetime(2016-09-03);
 demo_make_series1
-| make-series num=count() on TimeStamp in range(max_t-5d, max_t, 1h) by OsVer
+| make-series num=count() on TimeStamp from max_t-5d to max_t step 1h by OsVer
 | extend fnum = dynamic(null)
 | invoke series_fit_sine_sf('num', 'fnum', 24)
 | render timechart 

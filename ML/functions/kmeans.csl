@@ -23,9 +23,10 @@ kmeans_sf(tbl:(*), k:int, features:dynamic, cluster_col:string)
         'result[cluster_col] = km.labels_\n'
         ;
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 }
+
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 //
 // lambda for testing
@@ -48,8 +49,7 @@ let kmeans_sf=(tbl:(*), k:int, features:dynamic, cluster_col:string)
         'result[cluster_col] = km.labels_\n'
         ;
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 };
 
 //

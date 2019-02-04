@@ -2,7 +2,7 @@
 //  Clustering plugins for diagnosis and RCA
 //
 
-#connect cluster('demo11.westus').database('ML') 
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 //  Demo table contains 1 week of service exceptions
 //
@@ -17,14 +17,14 @@ demo_clustering1
 let min_t = toscalar(demo_clustering1 | summarize min(PreciseTimeStamp));  
 let max_t = toscalar(demo_clustering1 | summarize max(PreciseTimeStamp));  
 demo_clustering1
-| make-series num=count() on PreciseTimeStamp in range(min_t, max_t, 10m)
+| make-series num=count() on PreciseTimeStamp from min_t to max_t step 10m
 | render timechart 
 
 //  Focus on the 2nd spike, redraw 8 hours in 1m bins
 //
 let min_t=datetime(2016-08-23 11:00);
 demo_clustering1
-| make-series num=count() on PreciseTimeStamp in range(min_t, min_t+8h, 1m)
+| make-series num=count() on PreciseTimeStamp from min_t to min_t+8h step 1m
 | render timechart 
 
 //  Sample exceptions during the 2nd spike
@@ -63,5 +63,5 @@ let max_t = toscalar(demo_clustering1 | summarize max(PreciseTimeStamp));
 demo_clustering1
 | extend seg = iff(Region == "eau" and ScaleUnit == "su7" and DeploymentId == "b5d1d4df547d4a04ac15885617edba57"
 and ServiceHost == "e7f60c5d-4944-42b3-922a-92e98a8e7dec", "Problem", "Normal")
-| make-series num=count() on PreciseTimeStamp in range(min_t, max_t, 10m)  by seg  //  uncomment "by seg" to split
+| make-series num=count() on PreciseTimeStamp from min_t to max_t step 10m by seg  //  uncomment "by seg" to split
 | render timechart 

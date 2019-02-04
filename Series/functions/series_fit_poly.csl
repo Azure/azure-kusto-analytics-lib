@@ -25,9 +25,10 @@ series_fit_poly_sf(tbl:(*), in_series:string, out_series:string, degree:int)
         'result[out_series] = df[in_series].apply(fit, args=(degree,))\n'
     ;
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs)    //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)      //  new plugin syntax  
+     | evaluate python(typeof(*), code, kwargs)  
 }
+
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 //
 // lambda - for debugging
@@ -52,8 +53,7 @@ let series_fit_poly_sf=(tbl:(*), in_series:string, out_series:string, degree:int
         'result[out_series] = df[in_series].apply(fit, args=(degree,))\n'
     ;
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax  
+     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax  
 };
 
 //
@@ -61,7 +61,7 @@ let series_fit_poly_sf=(tbl:(*), in_series:string, out_series:string, degree:int
 //
 let max_t = datetime(2016-09-03);
 demo_make_series1
-| make-series num=count() on TimeStamp in range(max_t-1d, max_t, 5m) by OsVer
+| make-series num=count() on TimeStamp from max_t-1d to max_t step 5m by OsVer
 | extend fnum = dynamic(null)
 | invoke series_fit_poly_sf('num', 'fnum', 5)
 | render timechart 

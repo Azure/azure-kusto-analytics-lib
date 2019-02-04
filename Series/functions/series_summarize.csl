@@ -17,9 +17,10 @@ series_summarize_sf(tbl:(*), in_series:string, out_col:string, aggr_func:string,
         'func = getattr(np, aggr_func)\n'
         'result[out_col] = df[in_series].apply(func, args=(aggr_params,))\n';
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 }
+
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 let series_summarize_sf = (tbl:(*), in_series:string, out_col:string, aggr_func:string, aggr_params:dynamic=dynamic(null))
 {
@@ -33,8 +34,7 @@ let series_summarize_sf = (tbl:(*), in_series:string, out_col:string, aggr_func:
         'func = getattr(np, aggr_func)\n'
         'result[out_col] = df[in_series].apply(func, args=(aggr_params,))\n';
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 }
 ;
 
@@ -46,7 +46,7 @@ let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
 let pct_array = dynamic([10, 50, 90]);
 let tbl = materialize(
 demo_make_series1
-| make-series num=count() default=0 on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| make-series num=count() on TimeStamp from min_t to max_t step 1h by OsVer
 );
 tbl
 | extend sum_python=dynamic(null), pct_python=dynamic(null)

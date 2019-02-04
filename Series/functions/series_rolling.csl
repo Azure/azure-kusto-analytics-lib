@@ -22,15 +22,16 @@ series_rolling_sf(tbl:(*), in_series:string, out_series:string, win_size:int, ag
         'result[out_series] = list(pd.Series(in_s[i]).rolling(win_size, center=center, min_periods=1).apply(func).values for i in range(len(in_s)))\n'
         '\n';
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs) //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 }
+
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
 let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
 demo_make_series1
-| make-series num=count() default=0 on TimeStamp in range(min_t, max_t, 1h) by OsVer
-| extend rolling_num = dynamic(null)                             //  place holder until we support dynamic schema
+| make-series num=count() on TimeStamp from min_t to max_t step 1h by OsVer
+| extend rolling_num = dynamic(null)
 | invoke series_rolling_sf('num', 'rolling_num', 15, 'median', true)
 | render timechart // with(ysplit=panels) 
 
@@ -55,8 +56,7 @@ let series_rolling_sf = (tbl:(*), in_series:string, out_series:string, win_size:
         'result[out_series] = list(pd.Series(in_s[i]).rolling(win_size, center=center, min_periods=1).apply(func).values for i in range(len(in_s)))\n'
         '\n';
     tbl
-       | evaluate python_aml(code, 'df(*)', kwargs)     //  old plugin syntax
-//     | evaluate python(typeof(*), code, kwargs)       //  new plugin syntax
+    | evaluate python(typeof(*), code, kwargs)
 }
 ;
 
@@ -66,7 +66,7 @@ let series_rolling_sf = (tbl:(*), in_series:string, out_series:string, win_size:
 let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
 let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
 demo_make_series1
-| make-series num=count() on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| make-series num=count() on TimeStamp from min_t to max_t step 1h by OsVer
 | extend rolling_med = dynamic(null), rolling_min = dynamic(null), rolling_max = dynamic(null)
 | invoke series_rolling_sf('num', 'rolling_med', 15, 'median', true)
 | invoke series_rolling_sf('num', 'rolling_min', 15, 'min', true)

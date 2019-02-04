@@ -24,9 +24,10 @@ get_df_schema_sf(tbl:(*))
         'result = r\n';
     //
     tbl
-    | evaluate python_aml(code, 'col_name:string,col_type:string,col_len:long,elem_type:string,elem_0:string')      //  old plugin syntax
-//  | evaluate python(typeof(col_name:string,col_type:string,col_len:long,elem_type:string,elem_0:string), code)    //  new plugin syntax
+    | evaluate python(typeof(col_name:string,col_type:string,col_len:double,elem_type:string,elem_0:string), code)
 }
+
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
 
 //
 // lambda for testing
@@ -50,8 +51,7 @@ let get_df_schema_sf=(tbl:(*))
         'result = r\n';
     //
     tbl
-    | evaluate python_aml(code, 'col_name:string,col_type:string,col_len:long,elem_type:string,elem_0:string')      //  old plugin syntax
-//  | evaluate python(typeof(col_name:string,col_type:string,col_len:long,elem_type:string,elem_0:string), code)    //  new plugin syntax
+  | evaluate python(typeof(col_name:string,col_type:string,col_len:double,elem_type:string,elem_0:string), code)
 }
 ;
 
@@ -61,6 +61,6 @@ let get_df_schema_sf=(tbl:(*))
 let min_t = toscalar(demo_make_series1 | summarize min(TimeStamp));
 let max_t = toscalar(demo_make_series1 | summarize max(TimeStamp));
 demo_make_series1
-| make-series num=count() on TimeStamp in range(min_t, max_t, 1h) by OsVer
+| make-series num=count() on TimeStamp from min_t to max_t step 1h by OsVer
 | invoke get_df_schema_sf()
  

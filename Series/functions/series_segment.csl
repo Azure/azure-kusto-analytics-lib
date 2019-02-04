@@ -2,6 +2,8 @@
 //  series_segment_sf() - Create a series containing sequental numbering of non zero segments in the input boolean series
 //
 
+#connect cluster('demo11.westus.kusto.windows.net').database('ML') 
+
 .create function with (folder = "Packages\\Series", docstring = "Create a series containing sequental numbering of non zero segments in the input boolean series")
 series_segment_sf(series:dynamic)
 {
