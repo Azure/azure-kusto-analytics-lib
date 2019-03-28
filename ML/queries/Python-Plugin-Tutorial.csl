@@ -196,7 +196,7 @@ let classify_sf=(samples:(*), models_tbl:(name:string, timestamp:datetime, model
 };
 OccupancyDetection 
 | where Test == 1
-| extend pred_Occupancy=0
+| extend pred_Occupancy=bool(0)
 | invoke classify_sf(ML_Models, 'Occupancy', pack_array('Temperature', 'Humidity', 'Light', 'CO2', 'HumidityRatio'), 'pred_Occupancy')
 | fork
 (summarize n=count() by Occupancy, pred_Occupancy)                          //  confusion matrix
