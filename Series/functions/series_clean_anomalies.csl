@@ -1,0 +1,29 @@
+//
+//  series_clean_anomalies_sf() - replace anomalies by interpolation
+//
+
+.create function with (folder = "Packages\\Series", docstring = "Replace anomalies by interpolated value", skipvalidation = "true")
+series_clean_anomalies_sf(series:dynamic, anomalies:dynamic)
+{
+    let anomalies2 = series_multiply(anomalies, anomalies);     //    square anomalies just to convert -1 anomalies to 1  
+    let fnum = series_add(series_multiply(anomalies2, -1), series_multiply(series_less(anomalies2, 1), series)); // replace anomalies by -1
+    series_fill_linear(fnum, -1)                                //  interpolate
+}
+
+#connect "https://demo11.westus.kusto.windows.net/ML"
+
+let series_clean_anomalies_sf = (series:dynamic, anomalies:dynamic)
+{
+    let anomalies2 = series_multiply(anomalies, anomalies);    //    square anomalies just to convert -1 anomalies to 1  
+    let fnum = series_add(series_multiply(anomalies2, -1), series_multiply(series_less(anomalies2, 1), series));
+    series_fill_linear(fnum, -1)
+}
+;
+
+let min_t = datetime(2016-08-29);
+let max_t = datetime(2016-08-31);
+demo_make_series1
+| make-series num=count() on TimeStamp from min_t to max_t step 20m by OsVer
+| extend anomalies = series_decompose_anomalies(num, 0.8)
+| extend fnum = series_clean_anomalies_sf(num, anomalies)
+| render anomalychart with (anomalycolumns=anomalies)
