@@ -55,33 +55,36 @@ demo_make_series1
 //
 //  Note we Wrap the Python script in Kusto function/lambda for passing parameters and readability
 //
-let series_fit_poly = (tbl:(*), col:string, degree:int)
+
+let series_fit_poly=(tbl:(*), in_series:string, out_series:string, degree:int)
 {
-let kwargs = pack('col', col, 'degree', degree);
-tbl
-| evaluate python(typeof(*, fnum:dynamic), 
-    '\n'
-    'col = kargs["col"]\n'
-    'degree = kargs["degree"]\n'
-    '\n'
-    'def fit(s, deg):\n'
-    '    x = np.arange(len(s))\n'
-    '    coeff = np.polyfit(x, s, deg)\n'
-    '    p = np.poly1d(coeff)\n'
-    '    z = p(x)\n'
-    '    return z\n'
-    '\n'
-    'result = df\n'
-    'result["fnum"] = df[col].apply(fit, deg=degree)\n'
-    '\n'
-, kwargs)
+    let kwargs = pack('in_series', in_series, 'out_series', out_series, 'degree', degree);
+    let code=
+        '\n'
+        'in_series = kargs["in_series"]\n'
+        'out_series = kargs["out_series"]\n'
+        'degree = kargs["degree"]\n'
+        '\n'
+        'def fit(s, deg):\n'
+        '    x = np.arange(len(s))\n'
+        '    coeff = np.polyfit(x, s, deg)\n'
+        '    p = np.poly1d(coeff)\n'
+        '    z = p(x)\n'
+        '    return z\n'
+        '\n'
+        'result = df\n'
+        'result[out_series] = df[in_series].apply(fit, args=(degree,))\n'
+    ;
+    tbl
+     | evaluate python(typeof(*), code, kwargs)   //  new plugin syntax  
 };
 //
 let max_t = datetime(2016-09-03);
 demo_make_series1
 | make-series num=count() on TimeStamp from max_t-1d to max_t step 5m by OsVer
 | extend series_fit_line(num)
-| invoke series_fit_poly('num', 5)
+| extend fit_num=dynamic(null)
+| invoke series_fit_poly('num', 'fit_num', 5)
 | render timechart 
 
 //
