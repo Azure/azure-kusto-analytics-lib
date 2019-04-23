@@ -130,19 +130,33 @@ demo_series3
 //  Decomposition of a set of time series to seasonal, trend, residual & baseline (which is just seasonal+trend)
 //  This function is used for the following series_decompose_anomalies() and series_decompose_forecast()
 //
-let min_t = datetime(2016-08-29);
-let max_t = datetime(2016-09-03);
-demo_make_series1
-| make-series num=count() on TimeStamp from min_t to max_t step 10m by OsVer
-| where OsVer == 'Windows 10'   //  select a single time series just to get cleaner visualization
-| extend (baseline, seasonal, trend, residual) = series_decompose(num)
-| render timechart with(title='Web app. traffic of 5 days, Decomposition')
-
+let min_t = datetime(2017-01-05);
+let max_t = datetime(2017-02-03 22:00);
+let dt = 2h;
+demo_make_series2
+| make-series num=avg(num) on TimeStamp from min_t to max_t step dt by sid 
+| where sid == 'TS1'   //  select a single time series just to get cleaner visualization
+| extend (baseline, seasonal, trend, residual) = series_decompose(num, -1, 'linefit')
+| render timechart with(title='Web app. traffic of a month, decmposition', ysplit=panels)
 
 //
 //  series_decompose_anomalies()
 //
 //  Anomaly Detection by decomposing the series using series_decompose() and then calculates custom Tukey's fence test (like in series_outliers()) on the residual component
+//  Note that in this example we use "| render anomalychart with anomalycolumns=anomalies" just to render the anomalies as bold points on top of the series charts
+//
+let min_t = datetime(2017-01-05);
+let max_t = datetime(2017-02-03 22:00);
+let dt = 2h;
+demo_make_series2
+| make-series num=avg(num) on TimeStamp from min_t to max_t step dt by sid 
+| where sid == 'TS1'   //  select a single time series just to get cleaner visualization
+| extend (anomalies, score, baseline) = series_decompose_anomalies(num, 1.5, -1, 'linefit')
+| render anomalychart with(anomalycolumns=anomalies, title='Web app. traffic of a month, anomalies')
+
+//
+//  series_decompose_anomalies()
+//
 //  Note that in this example series_decompose_anomalies() is called implicitly with default values by the "| render anomalychart" clause
 //
 let min_t = datetime(2016-08-29);
@@ -151,18 +165,6 @@ demo_make_series1
 | make-series num=count() on TimeStamp from min_t to max_t step 10m by OsVer
 | where OsVer == 'Windows 10'
 | render anomalychart with(title='Web app. traffic of 4 days, Point Anomalies by Time Series Decmposition')
-
-//
-//  Call series_decompose_anomalies() explicitly to increase the anomaly threshold from default 1.5 to 3.0 (detecting strong anomalies only)
-//  Note that in this example we use "| render anomalychart with anomalycolumns=ad" just to render the anomalies as bold points on top of the series charts
-//
-let min_t = datetime(2016-08-29);
-let max_t = datetime(2016-09-02);
-demo_make_series1
-| make-series num=count() on TimeStamp from min_t to max_t step 10m by OsVer
-| where OsVer == 'Windows 10'
-| extend anomalies = series_decompose_anomalies(num, 2.0)
-| render anomalychart with(anomalycolumns=anomalies, title='Web app. traffic of 4 days, Point Anomalies by Time Series Decmposition, Anomaly threshold = 2.0')
 
 //
 //  series_decompose_forecast()
@@ -180,20 +182,19 @@ demo_make_series2
 | render timechart with(title='Web app. traffic of a month, forecasting the next week by Time Series Decmposition')
 
 //
-//  series_decompose_forecast()
+//  Forecast few time series at once
 //
-//  Forecasting by decomposing the series using series_decompose() and then extrapolate the baseline for the next day
-//
-let min_t = datetime(2016-08-29);
-let max_t = datetime(2016-09-02);
-let dt = 10m;
-let horizon=1d;
-demo_make_series1
-| make-series num=count() on TimeStamp from min_t to max_t step dt by OsVer
-| extend TimeStamp=array_concat(TimeStamp, range(max_t, max_t+horizon, dt)), num=array_concat(num, repeat(0, toint(horizon/dt)))
-| where OsVer == 'Windows 10'   //  select a single time series just to get cleaner visualization
+let min_t = datetime(2017-01-05);
+let max_t = datetime(2017-02-03 22:00);
+let dt = 2h;
+let horizon=7d;
+demo_make_series2
+| make-series num=avg(num) on TimeStamp from min_t to max_t+horizon step dt by sid
+| extend offset=case(sid=='TS3', 4000000, sid=='TS2', 2000000, 0)   //  add artificial offset for easy visualization of multiple time series
+| extend num=series_add(num, offset)
 | extend forecast = series_decompose_forecast(num, toint(horizon/dt))
-| render timechart with(title='Web app. traffic of 4 days, forecasting the next day by Time Series Decmposition')
+| render timechart with(title='Web app. traffic of a month, forecasting the next week for 3 time series')
+
 
 //
 //  Applying the above function on big set of time series is powerful!
