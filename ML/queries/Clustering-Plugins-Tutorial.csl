@@ -18,14 +18,14 @@ let min_t = toscalar(demo_clustering1 | summarize min(PreciseTimeStamp));
 let max_t = toscalar(demo_clustering1 | summarize max(PreciseTimeStamp));  
 demo_clustering1
 | make-series num=count() on PreciseTimeStamp from min_t to max_t step 10m
-| render timechart 
+| render timechart with(title="Service exceptions over a week, 10 minutes resolution") 
 
 //  Focus on the 2nd spike, redraw 8 hours in 1m bins
 //
 let min_t=datetime(2016-08-23 11:00);
 demo_clustering1
 | make-series num=count() on PreciseTimeStamp from min_t to min_t+8h step 1m
-| render timechart 
+| render timechart with(title="Zoom on the 2nd spike, 1 minute resolution")
 
 //  Sample exceptions during the 2nd spike
 //
@@ -41,6 +41,14 @@ let max_peak_t=datetime(2016-08-23 15:02);
 demo_clustering1
 | where PreciseTimeStamp between(min_peak_t..max_peak_t)
 | evaluate autocluster()
+
+//  alternatively using basket()
+//
+let min_peak_t=datetime(2016-08-23 15:00);
+let max_peak_t=datetime(2016-08-23 15:02);
+demo_clustering1
+| where PreciseTimeStamp between(min_peak_t..max_peak_t)
+| evaluate basket()
 
 //  diffpatterns() to find interesting clusters during the 2 minutes of the spike which are significantly different than clusters on the 8 minutes baseline before.
 //  Note that we leave out a 2 minutes gap between the baseline and the spike to avoid the transition zone
