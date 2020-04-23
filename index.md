@@ -23,8 +23,9 @@
 
     * Notebooks
 
-        1. [Training a classifier](./ML/notebooks/Prediction-of-Room-Occupancy-from-Kusto-Table-with-Kqlmagic.ipynb) - Demo of building and training a classifier for prediction of room occupancy in Jupyter using KqlMagic. Scoring is done using the Python plugin (see the [previous tutorial](./ML/queries/Python-Plugin-Tutorial.csl))
-        
+        1. [Training a classifier](./ML/notebooks/Prediction-of-Room-Occupancy-from-Kusto-Table-with-Kqlmagic.ipynb)<sup>[1](#footnotes)</sup> - Demo of building and training a classifier for prediction of room occupancy in Jupyter using KqlMagic. Scoring is done using the Python plugin (see the [Python tutorial](./ML/queries/Python-Plugin-Tutorial.csl))
+        1. [Training a classifier in AML and scoring in Kusto](./ML/notebooks/AML-ADX-Occupancy-Prediction-Pub.ipynb)<sup>[1](#footnotes)</sup> - Demo of building and training a classifier for prediction of room occupancy in Azure Machine Learning (AML) service. Training is done on AML cloud compute. Model is exported to Kusto and scoring is done using the Python plugin (see the [Python tutorial](./ML/queries/Python-Plugin-Tutorial.csl))
+
 1. **Time Series Analysis**
 
     * Functions
